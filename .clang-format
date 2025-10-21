@@ -1,0 +1,46 @@
+ColumnLimit: 100
+IndentWidth: 4
+
+PointerAlignment: Left
+
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: true
+AllowShortLoopsOnASingleLine: true
+
+BreakBeforeBraces: Attach
+BinPackArguments: false
+BinPackParameters: false
+AllowAllParametersOfDeclarationOnNextLine: true
+BreakAfterReturnType: Automatic
+PenaltyReturnTypeOnItsOwnLine: 1000
+
+InsertNewlineAtEOF: true
+
+AlignTrailingComments: Leave
+
+IncludeIsMainRegex: "(_test)?$"
+IncludeBlocks: Regroup
+SortIncludes: true
+IncludeCategories:
+  - Regex:           '^<[a-z]+\.h>'                    # <unistd.h>
+    Priority:        1
+    SortPriority:    1
+  - Regex:           '^<[a-z]+/.*\.h>'                 # <sys/event.h>
+    Priority:        1
+    SortPriority:    2
+  - Regex:           '^<[^/]*>'                        # <other>
+    Priority:        2
+    SortPriority:    3
+  - Regex:           '^<.*/'                           # <a/other>
+    Priority:        2
+    SortPriority:    4
+  - Regex:           '^".*"'                           # "project"
+    Priority:        3
+    SortPriority:    5
+  - Regex:           '^".*/'                           # "b/project"
+    Priority:        3
+    SortPriority:    6
+
+---
+Language: Json
+IndentWidth: 2

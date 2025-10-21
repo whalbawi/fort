@@ -1,0 +1,79 @@
+name: fort CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install dependencies
+      run: ./tools/install-deps.sh
+
+    - name: Run clang-format
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_COMMIT=${{ github.event.pull_request.base.sha }}
+            THIS_COMMIT=${{ github.event.pull_request.head.sha }}
+            git clang-format-19 --diff $BASE_COMMIT $THIS_COMMIT
+        else
+            git clang-format-19 --diff HEAD^
+        fi
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: ./tools/install-deps.sh
+
+    - name: Generate build system
+      run: cmake -B ${{github.workspace}}/build
+
+    - name: Run clang-tidy
+      run: cmake --build ${{github.workspace}}/build -t lint
+
+  headers:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: ./tools/install-deps.sh
+
+    - name: Generate build system
+      run: cmake -B ${{github.workspace}}/build -DBW_IWYU=ON
+
+    - name: Run iwyu
+      run: cmake --build ${{github.workspace}}/build -t iwyu
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+        matrix:
+          compiler: [gcc, gcc-11, clang-19]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: ./tools/install-deps.sh
+
+    - name: Generate build system
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=${{ matrix.compiler }}
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build
+
+    - name: Run unit tests
+      run: ctest --test-dir ${{github.workspace}}/build -V
