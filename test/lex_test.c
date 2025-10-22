@@ -235,6 +235,153 @@ TEST(test_idempotent_lexer_run, {
     lexer_fini(lexer);
 })
 
+TEST(test_single_line_comment, {
+    const char* src = "42 // this is a comment\n99";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_t* tokens = lexer_run(lexer);
+
+    tok_t* tok = tokens;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_CONSTANT);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "42"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_CONSTANT);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "99"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
+
+    lexer_fini(lexer);
+})
+
+TEST(test_comment_at_start, {
+    const char* src = "// comment at start\nfoo";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_t* tokens = lexer_run(lexer);
+
+    tok_t* tok = tokens;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "foo"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
+
+    lexer_fini(lexer);
+})
+
+TEST(test_comment_at_end, {
+    const char* src = "bar // comment at end";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_t* tokens = lexer_run(lexer);
+
+    tok_t* tok = tokens;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "bar"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
+
+    lexer_fini(lexer);
+})
+
+TEST(test_multiple_comments, {
+    const char* src = "// first comment\nx // second\n// third\ny";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_t* tokens = lexer_run(lexer);
+
+    tok_t* tok = tokens;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "x"));
+    TEST_ASSERT_EQ_INT32(tok->line, 2);
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "y"));
+    TEST_ASSERT_EQ_INT32(tok->line, 4);
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
+
+    lexer_fini(lexer);
+})
+
+TEST(test_comment_with_code_like_content, {
+    const char* src = "// int x = 42; return foo;\nactual";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_t* tokens = lexer_run(lexer);
+
+    tok_t* tok = tokens;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "actual"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
+
+    lexer_fini(lexer);
+})
+
+TEST(test_function_with_comments, {
+    const char* src = "i32 main() {\n"
+                      "    // return value\n"
+                      "    return 0; // success\n"
+                      "}";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_t* tokens = lexer_run(lexer);
+
+    tok_t* tok = tokens;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_KEYWORD_I32);
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "main"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_OPEN_PAREN);
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_CLOSE_PAREN);
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_OPEN_BRACE);
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_KEYWORD_RETURN);
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_CONSTANT);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "0"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_SEMICOLON);
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_CLOSE_BRACE);
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
+
+    lexer_fini(lexer);
+})
+
+TEST(test_empty_comment, {
+    const char* src = "foo //\nbar";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_t* tokens = lexer_run(lexer);
+
+    tok_t* tok = tokens;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "foo"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "bar"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
+
+    lexer_fini(lexer);
+})
+
 int main(int argc, char* argv[]) {
     TEST_INIT("lex", argc, argv);
 
@@ -249,6 +396,13 @@ int main(int argc, char* argv[]) {
     TEST_RUN(test_line_tracking);
     TEST_RUN(test_mixed_tokens);
     TEST_RUN(test_idempotent_lexer_run);
+    TEST_RUN(test_single_line_comment);
+    TEST_RUN(test_comment_at_start);
+    TEST_RUN(test_comment_at_end);
+    TEST_RUN(test_multiple_comments);
+    TEST_RUN(test_comment_with_code_like_content);
+    TEST_RUN(test_function_with_comments);
+    TEST_RUN(test_empty_comment);
 
     TEST_EXIT();
 }
