@@ -11,7 +11,7 @@ static bool lexeme_equals(const tok_t* tok, const char* expected) {
     return tok->lexeme.len == expected_len && strncmp(tok->lexeme.p, expected, expected_len) == 0;
 }
 
-TEST(test_empty_input, {
+TEST(empty_input, {
     const char* src = "";
     lexer_t* lexer = mklexer(src, strlen(src));
     tok_t* tokens = lexer_run(lexer);
@@ -23,7 +23,7 @@ TEST(test_empty_input, {
     lexer_fini(lexer);
 })
 
-TEST(test_single_constant, {
+TEST(single_constant, {
     const char* src = "42";
     lexer_t* lexer = mklexer(src, strlen(src));
     tok_t* tokens = lexer_run(lexer);
@@ -37,7 +37,7 @@ TEST(test_single_constant, {
     lexer_fini(lexer);
 })
 
-TEST(test_multiple_constants, {
+TEST(multiple_constants, {
     const char* src = "123 456 789";
     lexer_t* lexer = mklexer(src, strlen(src));
     tok_t* tokens = lexer_run(lexer);
@@ -60,7 +60,7 @@ TEST(test_multiple_constants, {
     lexer_fini(lexer);
 })
 
-TEST(test_identifier, {
+TEST(identifier, {
     const char* src = "foo bar_baz ABC_123";
     lexer_t* lexer = mklexer(src, strlen(src));
     tok_t* tokens = lexer_run(lexer);
@@ -83,7 +83,7 @@ TEST(test_identifier, {
     lexer_fini(lexer);
 })
 
-TEST(test_punctuation, {
+TEST(punctuation, {
     const char* src = "(){};";
     lexer_t* lexer = mklexer(src, strlen(src));
     tok_t* tokens = lexer_run(lexer);
@@ -110,7 +110,7 @@ TEST(test_punctuation, {
     lexer_fini(lexer);
 })
 
-TEST(test_whitespace_handling, {
+TEST(whitespace_handling, {
     const char* src = "  \t\n  42  \n\n  foo  \t";
     lexer_t* lexer = mklexer(src, strlen(src));
     tok_t* tokens = lexer_run(lexer);
@@ -131,7 +131,7 @@ TEST(test_whitespace_handling, {
     lexer_fini(lexer);
 })
 
-TEST(test_simple_function, {
+TEST(simple_function, {
     const char* src = "i32 main() { return 0; }";
     lexer_t* lexer = mklexer(src, strlen(src));
     tok_t* tokens = lexer_run(lexer);
@@ -173,7 +173,7 @@ TEST(test_simple_function, {
     lexer_fini(lexer);
 })
 
-TEST(test_invalid_constant_with_letter, {
+TEST(invalid_constant_with_letter, {
     const char* src = "123abc";
     lexer_t* lexer = mklexer(src, strlen(src));
     tok_t* tokens = lexer_run(lexer);
@@ -184,7 +184,7 @@ TEST(test_invalid_constant_with_letter, {
     lexer_fini(lexer);
 })
 
-TEST(test_line_tracking, {
+TEST(line_tracking, {
     const char* src = "foo\nbar\n\nbaz";
     lexer_t* lexer = mklexer(src, strlen(src));
     tok_t* tokens = lexer_run(lexer);
@@ -204,7 +204,7 @@ TEST(test_line_tracking, {
     lexer_fini(lexer);
 })
 
-TEST(test_mixed_tokens, {
+TEST(mixed_tokens, {
     const char* src = "x = 42 + y;";
     lexer_t* lexer = mklexer(src, strlen(src));
     tok_t* tokens = lexer_run(lexer);
@@ -219,7 +219,7 @@ TEST(test_mixed_tokens, {
     lexer_fini(lexer);
 })
 
-TEST(test_idempotent_lexer_run, {
+TEST(idempotent_lexer_run, {
     const char* src = "42 foo";
     lexer_t* lexer = mklexer(src, strlen(src));
 
@@ -235,7 +235,7 @@ TEST(test_idempotent_lexer_run, {
     lexer_fini(lexer);
 })
 
-TEST(test_single_line_comment, {
+TEST(single_line_comment, {
     const char* src = "42 // this is a comment\n99";
     lexer_t* lexer = mklexer(src, strlen(src));
     tok_t* tokens = lexer_run(lexer);
@@ -254,7 +254,7 @@ TEST(test_single_line_comment, {
     lexer_fini(lexer);
 })
 
-TEST(test_comment_at_start, {
+TEST(comment_at_start, {
     const char* src = "// comment at start\nfoo";
     lexer_t* lexer = mklexer(src, strlen(src));
     tok_t* tokens = lexer_run(lexer);
@@ -269,7 +269,7 @@ TEST(test_comment_at_start, {
     lexer_fini(lexer);
 })
 
-TEST(test_comment_at_end, {
+TEST(comment_at_end, {
     const char* src = "bar // comment at end";
     lexer_t* lexer = mklexer(src, strlen(src));
     tok_t* tokens = lexer_run(lexer);
@@ -284,7 +284,7 @@ TEST(test_comment_at_end, {
     lexer_fini(lexer);
 })
 
-TEST(test_multiple_comments, {
+TEST(multiple_comments, {
     const char* src = "// first comment\nx // second\n// third\ny";
     lexer_t* lexer = mklexer(src, strlen(src));
     tok_t* tokens = lexer_run(lexer);
@@ -305,7 +305,7 @@ TEST(test_multiple_comments, {
     lexer_fini(lexer);
 })
 
-TEST(test_comment_with_code_like_content, {
+TEST(comment_with_code_like_content, {
     const char* src = "// int x = 42; return foo;\nactual";
     lexer_t* lexer = mklexer(src, strlen(src));
     tok_t* tokens = lexer_run(lexer);
@@ -320,7 +320,7 @@ TEST(test_comment_with_code_like_content, {
     lexer_fini(lexer);
 })
 
-TEST(test_function_with_comments, {
+TEST(function_with_comments, {
     const char* src = "i32 main() {\n"
                       "    // return value\n"
                       "    return 0; // success\n"
@@ -363,7 +363,7 @@ TEST(test_function_with_comments, {
     lexer_fini(lexer);
 })
 
-TEST(test_empty_comment, {
+TEST(empty_comment, {
     const char* src = "foo //\nbar";
     lexer_t* lexer = mklexer(src, strlen(src));
     tok_t* tokens = lexer_run(lexer);
@@ -385,24 +385,24 @@ TEST(test_empty_comment, {
 int main(int argc, char* argv[]) {
     TEST_INIT("lex", argc, argv);
 
-    TEST_RUN(test_empty_input);
-    TEST_RUN(test_single_constant);
-    TEST_RUN(test_multiple_constants);
-    TEST_RUN(test_identifier);
-    TEST_RUN(test_punctuation);
-    TEST_RUN(test_whitespace_handling);
-    TEST_RUN(test_simple_function);
-    TEST_RUN(test_invalid_constant_with_letter);
-    TEST_RUN(test_line_tracking);
-    TEST_RUN(test_mixed_tokens);
-    TEST_RUN(test_idempotent_lexer_run);
-    TEST_RUN(test_single_line_comment);
-    TEST_RUN(test_comment_at_start);
-    TEST_RUN(test_comment_at_end);
-    TEST_RUN(test_multiple_comments);
-    TEST_RUN(test_comment_with_code_like_content);
-    TEST_RUN(test_function_with_comments);
-    TEST_RUN(test_empty_comment);
+    TEST_RUN(empty_input);
+    TEST_RUN(single_constant);
+    TEST_RUN(multiple_constants);
+    TEST_RUN(identifier);
+    TEST_RUN(punctuation);
+    TEST_RUN(whitespace_handling);
+    TEST_RUN(simple_function);
+    TEST_RUN(invalid_constant_with_letter);
+    TEST_RUN(line_tracking);
+    TEST_RUN(mixed_tokens);
+    TEST_RUN(idempotent_lexer_run);
+    TEST_RUN(single_line_comment);
+    TEST_RUN(comment_at_start);
+    TEST_RUN(comment_at_end);
+    TEST_RUN(multiple_comments);
+    TEST_RUN(comment_with_code_like_content);
+    TEST_RUN(function_with_comments);
+    TEST_RUN(empty_comment);
 
     TEST_EXIT();
 }
