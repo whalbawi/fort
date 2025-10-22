@@ -84,6 +84,7 @@ endif()
 # Fort compiler executable
 add_executable(fort
     ${FORT_SRC_DIR}/fort.c
+    ${FORT_SRC_DIR}/lex.c
 )
 
 # Apply sanitizer flags if any are enabled
@@ -126,3 +127,7 @@ add_custom_target(iwyu-fix
   | fix_include --update_comments --nosafe_headers --noreorder
   COMMENT "Running iwyu and applying suggestions..."
 )
+
+# Enable testing
+enable_testing()
+add_subdirectory(test)
