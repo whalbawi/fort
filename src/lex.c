@@ -46,6 +46,14 @@ static char peek(const lexer_t* lexer) {
     return lexer->src[lexer->pos];
 }
 
+static char peek_next(const lexer_t* lexer) {
+    if (lexer->src[lexer->pos] == '\0') {
+        return '\0';
+    }
+
+    return lexer->src[lexer->pos + 1];
+}
+
 static char advance(lexer_t* lexer) {
     const char c = peek(lexer);
     lexer->pos++;
@@ -53,17 +61,24 @@ static char advance(lexer_t* lexer) {
     return c;
 }
 
-static void skip_whitespace(lexer_t* lexer) {
-    char c = '\0';
-
-    while ((c = peek(lexer)) != '\0') {
+static void seek_lexeme(lexer_t* lexer) {
+    for (;;) {
+        char c = peek(lexer);
         if (is_whitespace(c)) {
+            lexer->src++;
             if (c == '\n') {
                 lexer->line++;
             }
-            lexer->src++;
+        } else if (c == '/') {
+            if (peek_next(lexer) == '/') {
+                while (peek(lexer) != '\n' && peek(lexer) != '\0') {
+                    lexer->src++;
+                }
+            } else {
+                return;
+            }
         } else {
-            break;
+            return;
         }
     }
 }
@@ -109,7 +124,7 @@ static void consume_lexeme(lexer_t* lexer) {
 }
 
 static tok_t lexer_next(lexer_t* lexer) {
-    skip_whitespace(lexer);
+    seek_lexeme(lexer);
     const char c = advance(lexer);
     tok_t tok;
 
