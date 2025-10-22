@@ -9,7 +9,7 @@ typedef struct lexer lexer_t;
 typedef enum {
     TOKT_IDENTIFIER,
     TOKT_CONSTANT,
-    TOKT_KEYWORD_INT,
+    TOKT_KEYWORD_I32,
     TOKT_KEYWORD_VOID,
     TOKT_KEYWORD_RETURN,
     TOKT_OPEN_PAREN,

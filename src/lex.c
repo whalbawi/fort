@@ -4,8 +4,20 @@
 #include <stddef.h>   // for NULL, size_t
 #include <stdint.h>   // for uint32_t
 #include <stdlib.h>   // for free, malloc
+#include <string.h>   // for strncmp
 
-#include "common.h"   // for FORT_UNUSED
+#include "common.h"   // for FORT_UNUSED, NELEM
+
+typedef struct {
+    const char* lexeme;
+    tokt_t type;
+} keyword_t;
+
+static const keyword_t KEYWORDS[] = {
+    {"i32", TOKT_KEYWORD_I32},
+    {"void", TOKT_KEYWORD_VOID},
+    {"return", TOKT_KEYWORD_RETURN},
+};
 
 struct lexer {
     const char* src;
@@ -14,15 +26,19 @@ struct lexer {
     tok_t head;
 };
 
-static bool is_digit(const char c) {
+static inline bool is_digit(const char c) {
     return c >= '0' && c <= '9';
 }
 
-static bool is_alpha(const char c) {
+static inline bool is_alpha(const char c) {
     return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-static bool is_whitespace(const char c) {
+static inline bool is_alphanum(const char c) {
+    return is_alpha(c) || is_digit(c);
+}
+
+static inline bool is_whitespace(const char c) {
     return c == ' ' || c == '\n' || c == '\t' || c == '\r';
 }
 
@@ -73,8 +89,15 @@ static tok_t mkconst(lexer_t* lexer) {
 }
 
 static tok_t mkident(lexer_t* lexer) {
-    while (is_alpha(peek(lexer))) {
+    while (is_alphanum(peek(lexer))) {
         FORT_UNUSED(advance(lexer));
+    }
+
+    for (uint32_t i = 0; i < NELEM(KEYWORDS); ++i) {
+        const keyword_t* const keyword = KEYWORDS + i;
+        if (strncmp(lexer->src, keyword->lexeme, lexer->pos) == 0) {
+            return mktok(lexer, keyword->type);
+        }
     }
 
     return mktok(lexer, TOKT_IDENTIFIER);
