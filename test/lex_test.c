@@ -75,11 +75,7 @@ TEST(test_identifier, {
 
     tok = tok->next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
-    TEST_ASSERT_TRUE(lexeme_equals(tok, "ABC_"));
-
-    tok = tok->next;
-    TEST_ASSERT_EQ_INT32(tok->type, TOKT_CONSTANT);
-    TEST_ASSERT_TRUE(lexeme_equals(tok, "123"));
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "ABC_123"));
 
     tok = tok->next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
@@ -136,13 +132,13 @@ TEST(test_whitespace_handling, {
 })
 
 TEST(test_simple_function, {
-    const char* src = "int main() { return 0; }";
+    const char* src = "i32 main() { return 0; }";
     lexer_t* lexer = mklexer(src, strlen(src));
     tok_t* tokens = lexer_run(lexer);
 
     tok_t* tok = tokens;
-    TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
-    TEST_ASSERT_TRUE(lexeme_equals(tok, "int"));
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_KEYWORD_I32);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "i32"));
 
     tok = tok->next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
@@ -158,7 +154,7 @@ TEST(test_simple_function, {
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_OPEN_BRACE);
 
     tok = tok->next;
-    TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_KEYWORD_RETURN);
     TEST_ASSERT_TRUE(lexeme_equals(tok, "return"));
 
     tok = tok->next;
