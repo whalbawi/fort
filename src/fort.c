@@ -1,61 +1,178 @@
-#include <stdio.h>   // for fprintf, stderr
-#include <stdlib.h>  // for EXIT_FAILURE, EXIT_SUCCESS
-#include <string.h>  // for strcmp
 
-#include "common.h"  // for FORT_UNUSED
+#define _XOPEN_SOURCE 500 // NOLINT(bugprone-reserved-identifier,readability-identifier-naming)
+#include <fcntl.h>     // for open, O_RDONLY
+#include <getopt.h>    // for no_argument, getopt_long, option
+#include <stdbool.h>   // for bool, false, true
+#include <stdio.h>     // for fprintf, NULL, stderr, perror, size_t
+#include <stdlib.h>    // for EXIT_FAILURE, free, malloc, EXIT_SUCCESS
+#include <unistd.h>    // for close, NULL, optind, pread, off_t, ssize_t
+#include <sys/stat.h>  // for stat, fstat
+
+#include "common.h"    // for FORT_UNUSED
+#include "lex.h"       // for tok_stream_fini, lexer_fini, lexer_run, mklexer
 
 typedef enum {
-    FORT_MODE_LEX,
-    FORT_MODE_PARSE,
-    FORT_MODE_CODEGEN,
-    FORT_MODE_COMPILE,
-    FORT_MODE_UNKNOWN,
-} fort_mode_t;
+    STAGE_LEX,
+    STAGE_PARSE,
+    STAGE_CODEGEN,
+    STAGE_COMPILE,
+} stage_t;
 
-static const char* modes[] = {[FORT_MODE_LEX] = "lex",
-                              [FORT_MODE_PARSE] = "parse",
-                              [FORT_MODE_CODEGEN] = "codegen",
-                              [FORT_MODE_COMPILE] = "compile"};
+#define FMTstage "STAGE(%s)"
 
-static fort_mode_t fort_mode(const char* mode) {
-    for (fort_mode_t i = 0; i < FORT_MODE_UNKNOWN; ++i) {
-        if (strcmp(modes[i], mode) == 0) {
-            return i;
+static inline const char* ARGstage(stage_t stage) {
+    switch (stage) {
+    case STAGE_LEX:
+        return "lex";
+    case STAGE_PARSE:
+        return "parse";
+    case STAGE_CODEGEN:
+        return "codegen";
+    case STAGE_COMPILE:
+        return "compile";
+    default:
+        return "unknown";
+    }
+}
+
+static char* load_src(const char* filepath) {
+    int fd = open(filepath, O_RDONLY);
+    if (fd < 0) {
+        perror("open");
+        return NULL;
+    }
+
+    struct stat st;
+    if (fstat(fd, &st) < 0) {
+        perror("fstat");
+        FORT_UNUSED(close(fd));
+        return NULL;
+    }
+
+    if (st.st_size < 0) {
+        FORT_UNUSED(fprintf(stderr, "error: unexpected file size: %zd\n", st.st_size));
+        FORT_UNUSED(close(fd));
+        return NULL;
+    }
+
+    size_t file_sz = (size_t)st.st_size;
+    char* src = malloc(file_sz + 1);
+    if (src == NULL) {
+        perror("malloc");
+        FORT_UNUSED(close(fd));
+        return NULL;
+    }
+    src[file_sz] = '\0';
+
+    off_t off = 0;
+    size_t nbytes_rem = file_sz;
+    while (nbytes_rem > 0) {
+        ssize_t nbytes = pread(fd, src + off, nbytes_rem, off);
+        if (nbytes < 0) {
+            perror("pread");
+            free(src);
+            FORT_UNUSED(close(fd));
+            return NULL;
+        }
+        nbytes_rem -= (size_t)nbytes;
+        off += nbytes;
+    }
+
+    FORT_UNUSED(close(fd));
+    return src;
+}
+
+static bool lex(const char* filepath, tok_stream_t* toks) {
+    char* src = load_src(filepath);
+
+    if (src == NULL) {
+        return false;
+    }
+
+    lexer_t* lexer = mklexer(src, 0);
+    *toks = lexer_run(lexer);
+    lexer_fini(lexer);
+    free(src);
+
+    return true;
+}
+
+static void print_usage(void) {
+    FORT_UNUSED(fprintf(stderr, "Usage: fort [OPTIONS] <source_file>\n"));
+    FORT_UNUSED(fprintf(stderr, "Options:\n"));
+    FORT_UNUSED(fprintf(stderr, "  --lex       Tokenize the source file\n"));
+    FORT_UNUSED(fprintf(stderr, "  --parse     Parse the source file\n"));
+    FORT_UNUSED(fprintf(stderr, "  --codegen   Generate code from the source file\n"));
+    FORT_UNUSED(fprintf(stderr, "  --compile   Compile the source file (default)\n"));
+}
+
+typedef struct {
+    const char* filepath;
+    stage_t stage;
+} opts_t;
+
+static bool parse_opts(int argc, char* argv[], opts_t* opts) {
+    static const struct option long_options[] = {{"lex", no_argument, NULL, STAGE_LEX},
+                                                 {"parse", no_argument, NULL, STAGE_PARSE},
+                                                 {"codegen", no_argument, NULL, STAGE_CODEGEN},
+                                                 {"compile", no_argument, NULL, STAGE_COMPILE},
+                                                 {NULL, 0, NULL, 0}};
+    int opt = -1;
+    while ((opt = getopt_long(argc, argv, "", long_options, NULL)) != -1) {
+        switch (opt) {
+        case STAGE_LEX:
+        case STAGE_PARSE:
+        case STAGE_CODEGEN:
+        case STAGE_COMPILE:
+            opts->stage = (stage_t)opt;
+            break;
+        default:
+            return false;
         }
     }
 
-    return FORT_MODE_UNKNOWN;
-}
-
-#define DO(E)                                                                                      \
-    case E:                                                                                        \
-        return #E
-static inline const char* fort_mode_str(fort_mode_t mode) {
-    switch (mode) {
-        DO(FORT_MODE_LEX);
-        DO(FORT_MODE_PARSE);
-        DO(FORT_MODE_CODEGEN);
-        DO(FORT_MODE_COMPILE);
-        DO(FORT_MODE_UNKNOWN);
-    default:
-        return "UNKNOWN";
+    if (optind != argc - 1) {
+        return false;
     }
+
+    opts->filepath = argv[optind];
+
+    return true;
 }
-#undef DO
 
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        FORT_UNUSED(fprintf(stderr, "Usage: %s <source_file> [mode]\n", argv[0]));
+    opts_t opts;
+    bool valid = parse_opts(argc, argv, &opts);
+
+    if (!valid) {
+        print_usage();
         return EXIT_FAILURE;
     }
 
-    const char* filename = argv[1];
-    const fort_mode_t mode = argc < 3 ? FORT_MODE_COMPILE : fort_mode(argv[2]);
+    switch (opts.stage) {
+    case STAGE_LEX: {
+        tok_stream_t toks;
+        if (!lex(opts.filepath, &toks)) {
+            FORT_UNUSED(fprintf(stderr, "error: failed to read source file: %s\n", opts.filepath));
+            return EXIT_FAILURE;
+        }
 
-    FORT_UNUSED(fprintf(stderr,
-                        "Welcome to the Fort compiler! filename=%s mode=%s\n",
-                        filename,
-                        fort_mode_str(mode)));
+        if (toks.err) {
+            FORT_UNUSED(fprintf(stderr, "error: failed to lex source file\n"));
+            tok_stream_fini(&toks);
+            return EXIT_FAILURE;
+        }
 
-    return EXIT_SUCCESS;
+        tok_stream_fini(&toks);
+        return EXIT_SUCCESS;
+    }
+
+    case STAGE_PARSE:
+    case STAGE_CODEGEN:
+    case STAGE_COMPILE:
+        FORT_UNUSED(fprintf(stderr, "not implemented: " FMTstage "\n", ARGstage(opts.stage)));
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_FAILURE;
 }

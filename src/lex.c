@@ -1,6 +1,6 @@
 #include "lex.h"
 
-#include <stdbool.h>  // for bool
+#include <stdbool.h>  // for bool, true
 #include <stddef.h>   // for NULL, size_t
 #include <stdint.h>   // for uint32_t
 #include <stdlib.h>   // for free, malloc
@@ -177,32 +177,36 @@ lexer_t* mklexer(const char* const src, const size_t len) {
 }
 
 void lexer_fini(lexer_t* lexer) {
-    tok_t* tok = lexer->head.next;
-    while (tok != NULL) {
-        tok_t* next = tok->next;
-        free(tok);
-        tok = next;
-    }
-
     free(lexer);
 }
 
-tok_t* lexer_run(lexer_t* lexer) {
-    if (lexer->head.next != NULL) {
-        return lexer->head.next;
-    }
+tok_stream_t lexer_run(lexer_t* lexer) {
+    tok_stream_t stream = {0};
+    tok_t* ip = &stream.head;
 
-    tok_t* ip = &lexer->head;
     for (;;) {
         tok_t* tok = malloc(sizeof(tok_t));
         *tok = lexer_next(lexer);
         ip->next = tok;
         ip = ip->next;
 
+        if (tok->type == TOKT_ERROR) {
+            stream.err = true;
+        }
+
         if (tok->type == TOKT_EOF) {
             break;
         }
     }
 
-    return lexer->head.next;
+    return stream;
+}
+
+void tok_stream_fini(tok_stream_t* toks) {
+    tok_t* tok = toks->head.next;
+    while (tok != NULL) {
+        tok_t* next = tok->next;
+        free(tok);
+        tok = next;
+    }
 }
