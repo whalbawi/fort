@@ -1,8 +1,9 @@
 #ifndef FORT_LEX_H
 #define FORT_LEX_H
 
-#include <stddef.h>  // for size_t
-#include <stdint.h>  // for uint32_t
+#include <stdbool.h>  // for bool
+#include <stddef.h>   // for size_t
+#include <stdint.h>   // for uint32_t
 
 typedef struct lexer lexer_t;
 
@@ -31,10 +32,17 @@ typedef struct tok {
     struct tok* next;
 } tok_t;
 
+typedef struct {
+    tok_t head;
+    bool err;
+} tok_stream_t;
+
 lexer_t* mklexer(const char* src, size_t len);
 
 void lexer_fini(lexer_t* lexer);
 
-tok_t* lexer_run(lexer_t* lexer);
+tok_stream_t lexer_run(lexer_t* lexer);
+
+void tok_stream_fini(tok_stream_t* tok);
 
 #endif // FORT_LEX_H

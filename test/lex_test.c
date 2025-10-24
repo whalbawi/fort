@@ -14,35 +14,42 @@ static bool lexeme_equals(const tok_t* tok, const char* expected) {
 TEST(empty_input, {
     const char* src = "";
     lexer_t* lexer = mklexer(src, strlen(src));
-    tok_t* tokens = lexer_run(lexer);
+    tok_stream_t stream = lexer_run(lexer);
 
-    TEST_ASSERT_NONNULL(tokens);
-    TEST_ASSERT_EQ_INT32(tokens->type, TOKT_EOF);
-    TEST_ASSERT_TRUE(tokens->next == NULL);
+    TEST_ASSERT_TRUE(!stream.err);
+    tok_t* tok = stream.head.next;
+    TEST_ASSERT_NONNULL(tok);
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
+    TEST_ASSERT_TRUE(tok->next == NULL);
 
+    tok_stream_fini(&stream);
     lexer_fini(lexer);
 })
 
 TEST(single_constant, {
     const char* src = "42";
     lexer_t* lexer = mklexer(src, strlen(src));
-    tok_t* tokens = lexer_run(lexer);
+    tok_stream_t stream = lexer_run(lexer);
 
-    TEST_ASSERT_NONNULL(tokens);
-    TEST_ASSERT_EQ_INT32(tokens->type, TOKT_CONSTANT);
-    TEST_ASSERT_TRUE(lexeme_equals(tokens, "42"));
-    TEST_ASSERT_NONNULL(tokens->next);
-    TEST_ASSERT_EQ_INT32(tokens->next->type, TOKT_EOF);
+    TEST_ASSERT_TRUE(!stream.err);
+    tok_t* tok = stream.head.next;
+    TEST_ASSERT_NONNULL(tok);
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_CONSTANT);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "42"));
+    TEST_ASSERT_NONNULL(tok->next);
+    TEST_ASSERT_EQ_INT32(tok->next->type, TOKT_EOF);
 
+    tok_stream_fini(&stream);
     lexer_fini(lexer);
 })
 
 TEST(multiple_constants, {
     const char* src = "123 456 789";
     lexer_t* lexer = mklexer(src, strlen(src));
-    tok_t* tokens = lexer_run(lexer);
+    tok_stream_t stream = lexer_run(lexer);
 
-    tok_t* tok = tokens;
+    TEST_ASSERT_TRUE(!stream.err);
+    tok_t* tok = stream.head.next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_CONSTANT);
     TEST_ASSERT_TRUE(lexeme_equals(tok, "123"));
 
@@ -57,15 +64,17 @@ TEST(multiple_constants, {
     tok = tok->next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
 
+    tok_stream_fini(&stream);
     lexer_fini(lexer);
 })
 
 TEST(identifier, {
     const char* src = "foo bar_baz ABC_123";
     lexer_t* lexer = mklexer(src, strlen(src));
-    tok_t* tokens = lexer_run(lexer);
+    tok_stream_t stream = lexer_run(lexer);
 
-    tok_t* tok = tokens;
+    TEST_ASSERT_TRUE(!stream.err);
+    tok_t* tok = stream.head.next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
     TEST_ASSERT_TRUE(lexeme_equals(tok, "foo"));
 
@@ -80,15 +89,17 @@ TEST(identifier, {
     tok = tok->next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
 
+    tok_stream_fini(&stream);
     lexer_fini(lexer);
 })
 
 TEST(punctuation, {
     const char* src = "(){};";
     lexer_t* lexer = mklexer(src, strlen(src));
-    tok_t* tokens = lexer_run(lexer);
+    tok_stream_t stream = lexer_run(lexer);
 
-    tok_t* tok = tokens;
+    TEST_ASSERT_TRUE(!stream.err);
+    tok_t* tok = stream.head.next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_OPEN_PAREN);
     TEST_ASSERT_TRUE(lexeme_equals(tok, "("));
 
@@ -107,15 +118,17 @@ TEST(punctuation, {
     tok = tok->next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
 
+    tok_stream_fini(&stream);
     lexer_fini(lexer);
 })
 
 TEST(whitespace_handling, {
     const char* src = "  \t\n  42  \n\n  foo  \t";
     lexer_t* lexer = mklexer(src, strlen(src));
-    tok_t* tokens = lexer_run(lexer);
+    tok_stream_t stream = lexer_run(lexer);
 
-    tok_t* tok = tokens;
+    TEST_ASSERT_TRUE(!stream.err);
+    tok_t* tok = stream.head.next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_CONSTANT);
     TEST_ASSERT_TRUE(lexeme_equals(tok, "42"));
     TEST_ASSERT_EQ_INT32(tok->line, 2);
@@ -128,15 +141,17 @@ TEST(whitespace_handling, {
     tok = tok->next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
 
+    tok_stream_fini(&stream);
     lexer_fini(lexer);
 })
 
 TEST(simple_function, {
     const char* src = "i32 main() { return 0; }";
     lexer_t* lexer = mklexer(src, strlen(src));
-    tok_t* tokens = lexer_run(lexer);
+    tok_stream_t stream = lexer_run(lexer);
 
-    tok_t* tok = tokens;
+    TEST_ASSERT_TRUE(!stream.err);
+    tok_t* tok = stream.head.next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_KEYWORD_I32);
     TEST_ASSERT_TRUE(lexeme_equals(tok, "i32"));
 
@@ -170,26 +185,31 @@ TEST(simple_function, {
     tok = tok->next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
 
+    tok_stream_fini(&stream);
     lexer_fini(lexer);
 })
 
 TEST(invalid_constant_with_letter, {
     const char* src = "123abc";
     lexer_t* lexer = mklexer(src, strlen(src));
-    tok_t* tokens = lexer_run(lexer);
+    tok_stream_t stream = lexer_run(lexer);
 
-    TEST_ASSERT_NONNULL(tokens);
-    TEST_ASSERT_EQ_INT32(tokens->type, TOKT_ERROR);
+    TEST_ASSERT_TRUE(stream.err);
+    tok_t* tok = stream.head.next;
+    TEST_ASSERT_NONNULL(tok);
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_ERROR);
 
+    tok_stream_fini(&stream);
     lexer_fini(lexer);
 })
 
 TEST(line_tracking, {
     const char* src = "foo\nbar\n\nbaz";
     lexer_t* lexer = mklexer(src, strlen(src));
-    tok_t* tokens = lexer_run(lexer);
+    tok_stream_t stream = lexer_run(lexer);
 
-    tok_t* tok = tokens;
+    TEST_ASSERT_TRUE(!stream.err);
+    tok_t* tok = stream.head.next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
     TEST_ASSERT_EQ_INT32(tok->line, 1);
 
@@ -201,46 +221,34 @@ TEST(line_tracking, {
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
     TEST_ASSERT_EQ_INT32(tok->line, 4);
 
+    tok_stream_fini(&stream);
     lexer_fini(lexer);
 })
 
 TEST(mixed_tokens, {
     const char* src = "x = 42 + y;";
     lexer_t* lexer = mklexer(src, strlen(src));
-    tok_t* tokens = lexer_run(lexer);
+    tok_stream_t stream = lexer_run(lexer);
 
-    tok_t* tok = tokens;
+    TEST_ASSERT_TRUE(stream.err);
+    tok_t* tok = stream.head.next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
     TEST_ASSERT_TRUE(lexeme_equals(tok, "x"));
 
     tok = tok->next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_ERROR);  // '=' not yet supported
 
-    lexer_fini(lexer);
-})
-
-TEST(idempotent_lexer_run, {
-    const char* src = "42 foo";
-    lexer_t* lexer = mklexer(src, strlen(src));
-
-    // First call
-    tok_t* tokens1 = lexer_run(lexer);
-    TEST_ASSERT_NONNULL(tokens1);
-    TEST_ASSERT_EQ_INT32(tokens1->type, TOKT_CONSTANT);
-
-    // Second call - should return same tokens
-    tok_t* tokens2 = lexer_run(lexer);
-    TEST_ASSERT_TRUE(tokens1 == tokens2);
-
+    tok_stream_fini(&stream);
     lexer_fini(lexer);
 })
 
 TEST(single_line_comment, {
     const char* src = "42 // this is a comment\n99";
     lexer_t* lexer = mklexer(src, strlen(src));
-    tok_t* tokens = lexer_run(lexer);
+    tok_stream_t stream = lexer_run(lexer);
 
-    tok_t* tok = tokens;
+    TEST_ASSERT_TRUE(!stream.err);
+    tok_t* tok = stream.head.next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_CONSTANT);
     TEST_ASSERT_TRUE(lexeme_equals(tok, "42"));
 
@@ -251,45 +259,51 @@ TEST(single_line_comment, {
     tok = tok->next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
 
+    tok_stream_fini(&stream);
     lexer_fini(lexer);
 })
 
 TEST(comment_at_start, {
     const char* src = "// comment at start\nfoo";
     lexer_t* lexer = mklexer(src, strlen(src));
-    tok_t* tokens = lexer_run(lexer);
+    tok_stream_t stream = lexer_run(lexer);
 
-    tok_t* tok = tokens;
+    TEST_ASSERT_TRUE(!stream.err);
+    tok_t* tok = stream.head.next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
     TEST_ASSERT_TRUE(lexeme_equals(tok, "foo"));
 
     tok = tok->next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
 
+    tok_stream_fini(&stream);
     lexer_fini(lexer);
 })
 
 TEST(comment_at_end, {
     const char* src = "bar // comment at end";
     lexer_t* lexer = mklexer(src, strlen(src));
-    tok_t* tokens = lexer_run(lexer);
+    tok_stream_t stream = lexer_run(lexer);
 
-    tok_t* tok = tokens;
+    TEST_ASSERT_TRUE(!stream.err);
+    tok_t* tok = stream.head.next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
     TEST_ASSERT_TRUE(lexeme_equals(tok, "bar"));
 
     tok = tok->next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
 
+    tok_stream_fini(&stream);
     lexer_fini(lexer);
 })
 
 TEST(multiple_comments, {
     const char* src = "// first comment\nx // second\n// third\ny";
     lexer_t* lexer = mklexer(src, strlen(src));
-    tok_t* tokens = lexer_run(lexer);
+    tok_stream_t stream = lexer_run(lexer);
 
-    tok_t* tok = tokens;
+    TEST_ASSERT_TRUE(!stream.err);
+    tok_t* tok = stream.head.next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
     TEST_ASSERT_TRUE(lexeme_equals(tok, "x"));
     TEST_ASSERT_EQ_INT32(tok->line, 2);
@@ -302,21 +316,24 @@ TEST(multiple_comments, {
     tok = tok->next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
 
+    tok_stream_fini(&stream);
     lexer_fini(lexer);
 })
 
 TEST(comment_with_code_like_content, {
     const char* src = "// int x = 42; return foo;\nactual";
     lexer_t* lexer = mklexer(src, strlen(src));
-    tok_t* tokens = lexer_run(lexer);
+    tok_stream_t stream = lexer_run(lexer);
 
-    tok_t* tok = tokens;
+    TEST_ASSERT_TRUE(!stream.err);
+    tok_t* tok = stream.head.next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
     TEST_ASSERT_TRUE(lexeme_equals(tok, "actual"));
 
     tok = tok->next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
 
+    tok_stream_fini(&stream);
     lexer_fini(lexer);
 })
 
@@ -326,9 +343,10 @@ TEST(function_with_comments, {
                       "    return 0; // success\n"
                       "}";
     lexer_t* lexer = mklexer(src, strlen(src));
-    tok_t* tokens = lexer_run(lexer);
+    tok_stream_t stream = lexer_run(lexer);
 
-    tok_t* tok = tokens;
+    TEST_ASSERT_TRUE(!stream.err);
+    tok_t* tok = stream.head.next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_KEYWORD_I32);
 
     tok = tok->next;
@@ -360,15 +378,17 @@ TEST(function_with_comments, {
     tok = tok->next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
 
+    tok_stream_fini(&stream);
     lexer_fini(lexer);
 })
 
 TEST(empty_comment, {
     const char* src = "foo //\nbar";
     lexer_t* lexer = mklexer(src, strlen(src));
-    tok_t* tokens = lexer_run(lexer);
+    tok_stream_t stream = lexer_run(lexer);
 
-    tok_t* tok = tokens;
+    TEST_ASSERT_TRUE(!stream.err);
+    tok_t* tok = stream.head.next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
     TEST_ASSERT_TRUE(lexeme_equals(tok, "foo"));
 
@@ -379,6 +399,7 @@ TEST(empty_comment, {
     tok = tok->next;
     TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
 
+    tok_stream_fini(&stream);
     lexer_fini(lexer);
 })
 
@@ -395,7 +416,6 @@ int main(int argc, char* argv[]) {
     TEST_RUN(invalid_constant_with_letter);
     TEST_RUN(line_tracking);
     TEST_RUN(mixed_tokens);
-    TEST_RUN(idempotent_lexer_run);
     TEST_RUN(single_line_comment);
     TEST_RUN(comment_at_start);
     TEST_RUN(comment_at_end);
