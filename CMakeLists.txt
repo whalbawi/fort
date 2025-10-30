@@ -131,3 +131,11 @@ add_custom_target(iwyu-fix
 # Enable testing
 enable_testing()
 add_subdirectory(test)
+
+# CLI test target
+add_custom_target(cli-test
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/test/cli-test.sh
+    DEPENDS fort
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Running CLI tests..."
+)
