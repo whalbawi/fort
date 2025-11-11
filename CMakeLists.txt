@@ -83,6 +83,7 @@ endif()
 
 # Fort compiler executable
 add_executable(fort
+    ${FORT_SRC_DIR}/common.c
     ${FORT_SRC_DIR}/fort.c
     ${FORT_SRC_DIR}/lex.c
 )
