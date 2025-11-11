@@ -3,12 +3,12 @@
 #include <fcntl.h>     // for open, O_RDONLY
 #include <getopt.h>    // for no_argument, getopt_long, option
 #include <stdbool.h>   // for bool, false, true
-#include <stdio.h>     // for fprintf, NULL, stderr, perror, size_t
+#include <stdio.h>     // for perror, size_t
 #include <stdlib.h>    // for EXIT_FAILURE, free, malloc, EXIT_SUCCESS
-#include <unistd.h>    // for close, NULL, optind, pread, off_t, ssize_t
+#include <unistd.h>    // for NULL, close, optind, pread, off_t, ssize_t
 #include <sys/stat.h>  // for stat, fstat
 
-#include "common.h"    // for FORT_UNUSED
+#include "common.h"    // for eprintln, FORT_UNUSED
 #include "lex.h"       // for tok_stream_fini, lexer_fini, lexer_run, mklexer
 
 typedef enum {
@@ -50,7 +50,7 @@ static char* load_src(const char* filepath) {
     }
 
     if (st.st_size < 0) {
-        FORT_UNUSED(fprintf(stderr, "error: unexpected file size: %zd\n", st.st_size));
+        eprintln("error: unexpected file size: %zd", st.st_size);
         FORT_UNUSED(close(fd));
         return NULL;
     }
@@ -98,12 +98,12 @@ static bool lex(const char* filepath, tok_stream_t* toks) {
 }
 
 static void print_usage(void) {
-    FORT_UNUSED(fprintf(stderr, "Usage: fort [OPTIONS] <source_file>\n"));
-    FORT_UNUSED(fprintf(stderr, "Options:\n"));
-    FORT_UNUSED(fprintf(stderr, "  --lex       Tokenize the source file\n"));
-    FORT_UNUSED(fprintf(stderr, "  --parse     Parse the source file\n"));
-    FORT_UNUSED(fprintf(stderr, "  --codegen   Generate code from the source file\n"));
-    FORT_UNUSED(fprintf(stderr, "  --compile   Compile the source file (default)\n"));
+    eprintln("Usage: fort [OPTIONS] <source_file>");
+    eprintln("Options:");
+    eprintln("  --lex       Tokenize the source file");
+    eprintln("  --parse     Parse the source file\n");
+    eprintln("  --codegen   Generate code from the source file");
+    eprintln("  --compile   Compile the source file (default)");
 }
 
 typedef struct {
@@ -112,13 +112,13 @@ typedef struct {
 } opts_t;
 
 static bool parse_opts(int argc, char* argv[], opts_t* opts) {
-    static const struct option long_options[] = {{"lex", no_argument, NULL, STAGE_LEX},
-                                                 {"parse", no_argument, NULL, STAGE_PARSE},
-                                                 {"codegen", no_argument, NULL, STAGE_CODEGEN},
-                                                 {"compile", no_argument, NULL, STAGE_COMPILE},
-                                                 {NULL, 0, NULL, 0}};
+    static const struct option long_opts[] = {{"lex", no_argument, NULL, STAGE_LEX},
+                                              {"parse", no_argument, NULL, STAGE_PARSE},
+                                              {"codegen", no_argument, NULL, STAGE_CODEGEN},
+                                              {"compile", no_argument, NULL, STAGE_COMPILE},
+                                              {NULL, 0, NULL, 0}};
     int opt = -1;
-    while ((opt = getopt_long(argc, argv, "", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "", long_opts, NULL)) != -1) {
         switch (opt) {
         case STAGE_LEX:
         case STAGE_PARSE:
@@ -153,12 +153,12 @@ int main(int argc, char* argv[]) {
     case STAGE_LEX: {
         tok_stream_t toks;
         if (!lex(opts.filepath, &toks)) {
-            FORT_UNUSED(fprintf(stderr, "error: failed to read source file: %s\n", opts.filepath));
+            eprintln("error: failed to read source file: %s", opts.filepath);
             return EXIT_FAILURE;
         }
 
         if (toks.err) {
-            FORT_UNUSED(fprintf(stderr, "error: failed to lex source file\n"));
+            eprintln("error: failed to lex source file");
             tok_stream_fini(&toks);
             return EXIT_FAILURE;
         }
@@ -170,7 +170,7 @@ int main(int argc, char* argv[]) {
     case STAGE_PARSE:
     case STAGE_CODEGEN:
     case STAGE_COMPILE:
-        FORT_UNUSED(fprintf(stderr, "not implemented: " FMTstage "\n", ARGstage(opts.stage)));
+        eprintln("not implemented: " FMTstage, ARGstage(opts.stage));
         return EXIT_FAILURE;
     }
 
