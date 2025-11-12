@@ -1,9 +1,8 @@
 #ifndef FORT_LEX_H
 #define FORT_LEX_H
 
-#include <stdbool.h>  // for bool
-#include <stddef.h>   // for size_t
-#include <stdint.h>   // for uint32_t
+#include <stddef.h>  // for size_t
+#include <stdint.h>  // for uint32_t
 
 typedef struct lexer lexer_t;
 

@@ -1,13 +1,14 @@
 cmake_minimum_required(VERSION 3.20)
 project(fort VERSION 0.1.0 LANGUAGES C)
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
 # Compiler warnings
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(
+        -Werror
         -Wall
         -Wextra
         -Wpedantic
@@ -83,7 +84,6 @@ endif()
 
 # Fort compiler executable
 add_executable(fort
-    ${FORT_SRC_DIR}/common.c
     ${FORT_SRC_DIR}/fort.c
     ${FORT_SRC_DIR}/lex.c
 )

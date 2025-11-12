@@ -2,7 +2,7 @@
 #define _XOPEN_SOURCE 500 // NOLINT(bugprone-reserved-identifier,readability-identifier-naming)
 #include <fcntl.h>     // for open, O_RDONLY
 #include <getopt.h>    // for no_argument, getopt_long, option
-#include <stdbool.h>   // for bool, false, true
+#include <stdbool.h>   // IWYU pragma: keep
 #include <stdio.h>     // for perror, size_t
 #include <stdlib.h>    // for EXIT_FAILURE, free, malloc, EXIT_SUCCESS
 #include <unistd.h>    // for NULL, close, optind, pread, off_t, ssize_t
@@ -141,7 +141,7 @@ static bool parse_opts(int argc, char* argv[], opts_t* opts) {
 }
 
 int main(int argc, char* argv[]) {
-    opts_t opts;
+    opts_t opts = {};
     bool valid = parse_opts(argc, argv, &opts);
 
     if (!valid) {

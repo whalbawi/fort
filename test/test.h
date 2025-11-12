@@ -2,11 +2,10 @@
 #define FORT_TEST_H
 
 #include <inttypes.h>  // for PRId32, PRId64
-#include <stdbool.h>   // for true, false
-#include <stdio.h>     // for fprintf, stderr, NULL
+#include <stdio.h>     // for NULL
 #include <string.h>    // for strlen, strncmp
 
-#include "common.h"    // for FORT_UNUSED
+#include "common.h"    // for eprintln
 
 typedef enum {
     TEST_RESULT_OK = 0,
@@ -56,7 +55,7 @@ typedef enum {
                      strlen(TEST_FILTER_TEST_PREFIX_)) != 0)) {                                    \
             break;                                                                                 \
         }                                                                                          \
-        FORT_UNUSED(fprintf(stderr, "RUN: %s.%s\n", TEST_SUITENAME_, #test_function));             \
+        eprintln("RUN: %s.%s", TEST_SUITENAME_, #test_function);                                   \
         const TEST_RESULT_ test_result = (test_function)();                                        \
         TEST_FINAL_RESULT_UPDATE_(test_result);                                                    \
         const char* result_str = NULL;                                                             \
@@ -73,8 +72,7 @@ typedef enum {
         default:                                                                                   \
             result_str = "UNKNOWN";                                                                \
         }                                                                                          \
-        FORT_UNUSED(                                                                               \
-            fprintf(stderr, "END: %s.%s %s\n\n", TEST_SUITENAME_, #test_function, result_str));    \
+        eprintln("END: %s.%s %s\n", TEST_SUITENAME_, #test_function, result_str);                  \
     } while (0)
 
 #define TEST(test_name, test_body)                                                                 \
@@ -85,9 +83,7 @@ typedef enum {
 
 #define TEST_LOG_(fmt, ...)                                                                        \
     do {                                                                                           \
-        const int res =                                                                            \
-            fprintf(stderr, "%s:%d\n\t" fmt "\n", __FILE__, __LINE__ __VA_OPT__(, ) __VA_ARGS__);  \
-        FORT_UNUSED(res);                                                                          \
+        eprintln("%s:%d\n\t" fmt, __FILE__, __LINE__ __VA_OPT__(, ) __VA_ARGS__);                  \
     } while (0)
 
 #define TEST_ASSERT_EQ_BOOL_(val, exp)                                                             \
