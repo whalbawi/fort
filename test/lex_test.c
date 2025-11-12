@@ -1,10 +1,9 @@
 #include "lex.h"
 
-#include <stdbool.h>  // for bool
-#include <stddef.h>   // for NULL, size_t
-#include <string.h>   // for strlen, strncmp
+#include <stddef.h>  // for NULL, size_t
+#include <string.h>  // for strlen, strncmp
 
-#include "test.h"     // for TEST_ASSERT_EQ_INT32, TEST_ASSERT_TRUE, TEST
+#include "test.h"    // for TEST_ASSERT_EQ_INT32, TEST_ASSERT_TRUE, TEST
 
 static bool lexeme_equals(const tok_t* tok, const char* expected) {
     size_t expected_len = strlen(expected);
