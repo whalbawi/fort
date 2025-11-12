@@ -1,12 +1,11 @@
 #include "lex.h"
 
-#include <stdbool.h>  // for bool, true
-#include <stddef.h>   // for NULL, size_t
-#include <stdint.h>   // for uint32_t
-#include <stdlib.h>   // for free, malloc
-#include <string.h>   // for strncmp
+#include <stddef.h>  // for NULL, size_t
+#include <stdint.h>  // for uint32_t
+#include <stdlib.h>  // for free, malloc
+#include <string.h>  // for strncmp
 
-#include "common.h"   // for FORT_UNUSED, NELEM
+#include "common.h"  // for FORT_UNUSED, NELEM
 
 typedef struct {
     const char* lexeme;

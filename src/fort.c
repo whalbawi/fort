@@ -141,7 +141,7 @@ static bool parse_opts(int argc, char* argv[], opts_t* opts) {
 }
 
 int main(int argc, char* argv[]) {
-    opts_t opts;
+    opts_t opts = {NULL, STAGE_LEX};
     bool valid = parse_opts(argc, argv, &opts);
 
     if (!valid) {
