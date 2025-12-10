@@ -1,11 +1,11 @@
-# Test configuration
+function(fort_test TEST_NAME)
+    file(GLOB TEST_FILE "${FORT_TEST_DIR}/${TEST_NAME}.c*")
+    add_executable(${TEST_NAME} ${TEST_FILE})
+    target_include_directories(${TEST_NAME} PRIVATE ${FORT_SRC_DIR})
+    target_link_libraries(${TEST_NAME} PRIVATE fort-lib)
+    sanitizer_flags(${TEST_NAME})
+    add_test(${TEST_NAME} ${TEST_NAME})
+endfunction()
 
-# Lexer tests
-add_executable(lex_test
-    lex_test.c
-    ${FORT_SRC_DIR}/lex.c
-)
-
-target_include_directories(lex_test PRIVATE ${FORT_SRC_DIR})
-
-add_test(NAME lex_test COMMAND lex_test)
+fort_test(lex_test)
+fort_test(parse_test)

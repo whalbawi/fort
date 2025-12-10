@@ -2,14 +2,14 @@
 #define _XOPEN_SOURCE 500 // NOLINT(bugprone-reserved-identifier,readability-identifier-naming)
 #include <fcntl.h>     // for open, O_RDONLY
 #include <getopt.h>    // for no_argument, getopt_long, option
-#include <stdbool.h>   // for bool, false, true
 #include <stdio.h>     // for perror, size_t
-#include <stdlib.h>    // for EXIT_FAILURE, free, malloc, EXIT_SUCCESS
+#include <stdlib.h>    // for EXIT_FAILURE, free, EXIT_SUCCESS, malloc
 #include <unistd.h>    // for NULL, close, optind, pread, off_t, ssize_t
 #include <sys/stat.h>  // for stat, fstat
 
-#include "common.h"    // for eprintln, FORT_UNUSED
-#include "lex.h"       // for tok_stream_fini, lexer_fini, lexer_run, mklexer
+#include "common.h"    // for eprintln, FORT_OUTCOME_OK, fort_outcome_t, FOR...
+#include "lex.h"       // for tok_stream_t, lexer_fini, lexer_run, mklexer
+#include "parse.h"     // for mkparser, parser_fini, parser_run, prog_t, par...
 
 typedef enum {
     STAGE_LEX,
@@ -82,21 +82,6 @@ static char* load_src(const char* filepath) {
     return src;
 }
 
-static bool lex(const char* filepath, tok_stream_t* toks) {
-    char* src = load_src(filepath);
-
-    if (src == NULL) {
-        return false;
-    }
-
-    lexer_t* lexer = mklexer(src, 0);
-    *toks = lexer_run(lexer);
-    lexer_fini(lexer);
-    free(src);
-
-    return true;
-}
-
 static void print_usage(void) {
     eprintln("Usage: fort [OPTIONS] <source_file>");
     eprintln("Options:");
@@ -111,7 +96,7 @@ typedef struct {
     stage_t stage;
 } opts_t;
 
-static bool parse_opts(int argc, char* argv[], opts_t* opts) {
+static fort_outcome_t parse_opts(int argc, char* argv[], opts_t* opts) {
     static const struct option long_opts[] = {{"lex", no_argument, NULL, STAGE_LEX},
                                               {"parse", no_argument, NULL, STAGE_PARSE},
                                               {"codegen", no_argument, NULL, STAGE_CODEGEN},
@@ -127,24 +112,65 @@ static bool parse_opts(int argc, char* argv[], opts_t* opts) {
             opts->stage = (stage_t)opt;
             break;
         default:
-            return false;
+            return FORT_OUTCOME_ERR;
         }
     }
 
     if (optind != argc - 1) {
-        return false;
+        return FORT_OUTCOME_ERR;
     }
 
     opts->filepath = argv[optind];
 
-    return true;
+    return FORT_OUTCOME_OK;
+}
+
+static fort_outcome_t stage_lex(const char* filepath, tok_stream_t* toks) {
+    char* src = load_src(filepath);
+
+    if (src == NULL) {
+        eprintln("error: failed to read source file: %s", filepath);
+        return FORT_OUTCOME_ERR;
+    }
+
+    lexer_t* lexer = mklexer(src, 0);
+    fort_outcome_t outcome = lexer_run(lexer, toks);
+    lexer_fini(lexer);
+    free(src);
+    if (outcome != FORT_OUTCOME_OK) {
+        eprintln("error: failed to lex source file");
+
+        return outcome;
+    }
+
+    return FORT_OUTCOME_OK;
+}
+
+static fort_outcome_t stage_parse(const char* filepath, prog_t* prog) {
+    tok_stream_t toks = {0};
+    fort_outcome_t outcome = stage_lex(filepath, &toks);
+    if (outcome != FORT_OUTCOME_OK) {
+        return outcome;
+    }
+
+    parser_t* parser = mkparser(&toks);
+    outcome = parser_run(parser, prog);
+    parser_fini(parser);
+    if (outcome != FORT_OUTCOME_OK) {
+        eprintln("error: failed to parse source file");
+
+        return outcome;
+    }
+
+    return FORT_OUTCOME_OK;
 }
 
 int main(int argc, char* argv[]) {
+    fort_outcome_t outcome = FORT_OUTCOME_ERR;
     opts_t opts = {NULL, STAGE_LEX};
-    bool valid = parse_opts(argc, argv, &opts);
+    outcome = parse_opts(argc, argv, &opts);
 
-    if (!valid) {
+    if (outcome != FORT_OUTCOME_OK) {
         print_usage();
         return EXIT_FAILURE;
     }
@@ -152,22 +178,24 @@ int main(int argc, char* argv[]) {
     switch (opts.stage) {
     case STAGE_LEX: {
         tok_stream_t toks;
-        if (!lex(opts.filepath, &toks)) {
-            eprintln("error: failed to read source file: %s", opts.filepath);
+        outcome = stage_lex(opts.filepath, &toks);
+        if (outcome != FORT_OUTCOME_OK) {
             return EXIT_FAILURE;
         }
 
-        if (toks.err) {
-            eprintln("error: failed to lex source file");
-            tok_stream_fini(&toks);
-            return EXIT_FAILURE;
-        }
-
-        tok_stream_fini(&toks);
         return EXIT_SUCCESS;
     }
 
-    case STAGE_PARSE:
+    case STAGE_PARSE: {
+        prog_t prog;
+        outcome = stage_parse(opts.filepath, &prog);
+        if (outcome != FORT_OUTCOME_OK) {
+            return EXIT_FAILURE;
+        }
+
+        return EXIT_SUCCESS;
+    }
+
     case STAGE_CODEGEN:
     case STAGE_COMPILE:
         eprintln("not implemented: " FMTstage, ARGstage(opts.stage));
