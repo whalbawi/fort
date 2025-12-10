@@ -2,7 +2,7 @@
 #define FORT_COMMON_H
 
 #include <stdarg.h>  // for va_end, va_list, va_start
-#include <stdio.h>   // for fprintf, stderr, vfprintf
+#include <stdio.h>   // for fprintf, stderr, vfprintf, size_t
 
 #define FORT_UNUSED(x) (void)(x)
 
@@ -20,5 +20,24 @@ static inline void eprintln(const char* fmt, ...) {
     va_end(args);
     FORT_UNUSED(fprintf(stderr, "\n"));
 }
+
+typedef enum {
+    FORT_OUTCOME_OK,
+    FORT_OUTCOME_ERR,
+    FORT_OUTCOME_FATAL,
+} fort_outcome_t;
+
+#define FORT_OUTCOME_NOK_RET(expr)                                                                 \
+    {                                                                                              \
+        fort_outcome_t outcome__ = (expr);                                                         \
+        if (outcome__ != FORT_OUTCOME_OK) {                                                        \
+            return outcome__;                                                                      \
+        }                                                                                          \
+    }
+
+typedef struct {
+    const char* p;
+    size_t len;
+} buf_t;
 
 #endif // FORT_COMMON_H

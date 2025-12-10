@@ -1,11 +1,12 @@
 #include "lex.h"
 
-#include <stddef.h>  // for NULL, size_t
-#include <stdint.h>  // for uint32_t
-#include <stdlib.h>  // for free, malloc
-#include <string.h>  // for strncmp
+#include <stdbool.h>  // for bool
+#include <stddef.h>   // for NULL, size_t
+#include <stdint.h>   // for uint32_t
+#include <stdlib.h>   // for free, malloc
+#include <string.h>   // for strncmp
 
-#include "common.h"  // for FORT_UNUSED, NELEM
+#include "common.h"   // for FORT_UNUSED, FORT_OUTCOME_ERR, FORT_OUTCOME_OK
 
 typedef struct {
     const char* lexeme;
@@ -179,9 +180,8 @@ void lexer_fini(lexer_t* lexer) {
     free(lexer);
 }
 
-tok_stream_t lexer_run(lexer_t* lexer) {
-    tok_stream_t stream = {0};
-    tok_t* ip = &stream.head;
+fort_outcome_t lexer_run(lexer_t* lexer, tok_stream_t* toks) {
+    tok_t* ip = &toks->head;
 
     for (;;) {
         tok_t* tok = malloc(sizeof(tok_t));
@@ -190,7 +190,7 @@ tok_stream_t lexer_run(lexer_t* lexer) {
         ip = ip->next;
 
         if (tok->type == TOKT_ERROR) {
-            stream.err = true;
+            return FORT_OUTCOME_ERR;
         }
 
         if (tok->type == TOKT_EOF) {
@@ -198,7 +198,9 @@ tok_stream_t lexer_run(lexer_t* lexer) {
         }
     }
 
-    return stream;
+    toks->next = toks->head.next;
+
+    return FORT_OUTCOME_OK;
 }
 
 void tok_stream_fini(tok_stream_t* toks) {

@@ -82,17 +82,28 @@ if(FORT_UBSAN_ENABLED)
     message(STATUS "UndefinedBehaviorSanitizer enabled")
 endif()
 
-# Fort compiler executable
-add_executable(fort
-    ${FORT_SRC_DIR}/fort.c
+function(sanitizer_flags TARGET)
+if(SANITIZER_FLAGS)
+    target_compile_options(${TARGET} PRIVATE ${SANITIZER_FLAGS})
+    target_link_options(${TARGET} PRIVATE ${SANITIZER_LINK_FLAGS})
+endif()
+endfunction()
+
+set(FORT_SRC_LIST
     ${FORT_SRC_DIR}/lex.c
+    ${FORT_SRC_DIR}/parse.c
 )
 
-# Apply sanitizer flags if any are enabled
-if(SANITIZER_FLAGS)
-    target_compile_options(fort PRIVATE ${SANITIZER_FLAGS})
-    target_link_options(fort PRIVATE ${SANITIZER_LINK_FLAGS})
-endif()
+add_library(fort-lib ${FORT_SRC_LIST})
+target_include_directories(fort-lib PRIVATE ${FORT_SRC_DIR})
+set_target_properties(fort-lib PROPERTIES OUTPUT_NAME fort)
+sanitizer_flags(fort-lib)
+
+# Fort compiler executable
+add_executable(fort ${FORT_SRC_DIR}/fort.c)
+target_include_directories(fort PRIVATE ${FORT_SRC_DIR})
+target_link_libraries(fort fort-lib)
+sanitizer_flags(fort)
 
 file(GLOB_RECURSE 
     HDR_FILES

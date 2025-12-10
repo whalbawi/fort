@@ -2,7 +2,7 @@
 #define FORT_TEST_H
 
 #include <inttypes.h>  // for PRId32, PRId64
-#include <stdbool.h>   // for true, false
+#include <stdbool.h>   // for false, true
 #include <stdio.h>     // for NULL
 #include <string.h>    // for strlen, strncmp
 
