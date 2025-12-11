@@ -90,6 +90,7 @@ endif()
 endfunction()
 
 set(FORT_SRC_LIST
+    ${FORT_SRC_DIR}/assemble.c
     ${FORT_SRC_DIR}/lex.c
     ${FORT_SRC_DIR}/parse.c
 )
