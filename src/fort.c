@@ -7,6 +7,7 @@
 #include <unistd.h>    // for NULL, close, optind, pread, off_t, ssize_t
 #include <sys/stat.h>  // for stat, fstat
 
+#include "assemble.h"
 #include "common.h"    // for eprintln, FORT_OUTCOME_OK, fort_outcome_t, FOR...
 #include "lex.h"       // for tok_stream_t, lexer_fini, lexer_run, mklexer
 #include "parse.h"     // for mkparser, parser_fini, parser_run, prog_t, par...
@@ -79,6 +80,7 @@ static char* load_src(const char* filepath) {
     }
 
     FORT_UNUSED(close(fd));
+
     return src;
 }
 
@@ -125,18 +127,10 @@ static fort_outcome_t parse_opts(int argc, char* argv[], opts_t* opts) {
     return FORT_OUTCOME_OK;
 }
 
-static fort_outcome_t stage_lex(const char* filepath, tok_stream_t* toks) {
-    char* src = load_src(filepath);
-
-    if (src == NULL) {
-        eprintln("error: failed to read source file: %s", filepath);
-        return FORT_OUTCOME_ERR;
-    }
-
+static fort_outcome_t stage_lex(const char* src, tok_stream_t* toks) {
     lexer_t* lexer = mklexer(src, 0);
     fort_outcome_t outcome = lexer_run(lexer, toks);
     lexer_fini(lexer);
-    free(src);
     if (outcome != FORT_OUTCOME_OK) {
         eprintln("error: failed to lex source file");
 
@@ -146,9 +140,9 @@ static fort_outcome_t stage_lex(const char* filepath, tok_stream_t* toks) {
     return FORT_OUTCOME_OK;
 }
 
-static fort_outcome_t stage_parse(const char* filepath, prog_t* prog) {
+static fort_outcome_t stage_parse(const char* src, prog_t* prog) {
     tok_stream_t toks = {0};
-    fort_outcome_t outcome = stage_lex(filepath, &toks);
+    fort_outcome_t outcome = stage_lex(src, &toks);
     if (outcome != FORT_OUTCOME_OK) {
         return outcome;
     }
@@ -156,6 +150,7 @@ static fort_outcome_t stage_parse(const char* filepath, prog_t* prog) {
     parser_t* parser = mkparser(&toks);
     outcome = parser_run(parser, prog);
     parser_fini(parser);
+    tok_stream_fini(&toks);
     if (outcome != FORT_OUTCOME_OK) {
         eprintln("error: failed to parse source file");
 
@@ -165,42 +160,71 @@ static fort_outcome_t stage_parse(const char* filepath, prog_t* prog) {
     return FORT_OUTCOME_OK;
 }
 
+static fort_outcome_t stage_codegen(const char* src, asm_prog_t* asm_prog) {
+    prog_t prog = {0};
+    fort_outcome_t outcome = stage_parse(src, &prog);
+    if (outcome != FORT_OUTCOME_OK) {
+        return outcome;
+    }
+
+    assembler_t* assembler = mkassembler(&prog);
+    outcome = assembler_run(assembler, asm_prog);
+    assembler_fini(assembler);
+
+    if (outcome != FORT_OUTCOME_OK) {
+        eprintln("error: failed to generate assembly");
+
+        return outcome;
+    }
+
+    return FORT_OUTCOME_OK;
+}
+
 int main(int argc, char* argv[]) {
+    int exit_code = EXIT_FAILURE;
     fort_outcome_t outcome = FORT_OUTCOME_ERR;
+
     opts_t opts = {NULL, STAGE_LEX};
     outcome = parse_opts(argc, argv, &opts);
-
     if (outcome != FORT_OUTCOME_OK) {
         print_usage();
         return EXIT_FAILURE;
     }
 
+    char* src = load_src(opts.filepath);
+    if (src == NULL) {
+        return EXIT_FAILURE;
+    }
+
     switch (opts.stage) {
     case STAGE_LEX: {
-        tok_stream_t toks;
-        outcome = stage_lex(opts.filepath, &toks);
-        if (outcome != FORT_OUTCOME_OK) {
-            return EXIT_FAILURE;
-        }
-
-        return EXIT_SUCCESS;
+        tok_stream_t toks = {0};
+        outcome = stage_lex(src, &toks);
+        tok_stream_fini(&toks);
+        exit_code = outcome == FORT_OUTCOME_OK ? EXIT_SUCCESS : EXIT_FAILURE;
+        break;
     }
 
     case STAGE_PARSE: {
-        prog_t prog;
-        outcome = stage_parse(opts.filepath, &prog);
-        if (outcome != FORT_OUTCOME_OK) {
-            return EXIT_FAILURE;
-        }
-
-        return EXIT_SUCCESS;
+        prog_t prog = {0};
+        outcome = stage_parse(src, &prog);
+        exit_code = outcome == FORT_OUTCOME_OK ? EXIT_SUCCESS : EXIT_FAILURE;
+        break;
     }
 
-    case STAGE_CODEGEN:
+    case STAGE_CODEGEN: {
+        asm_prog_t asm_prog = {0};
+        outcome = stage_codegen(src, &asm_prog);
+        asm_prog_fini(&asm_prog);
+        exit_code = outcome == FORT_OUTCOME_OK ? EXIT_SUCCESS : EXIT_FAILURE;
+        break;
+    }
+
     case STAGE_COMPILE:
         eprintln("not implemented: " FMTstage, ARGstage(opts.stage));
         return EXIT_FAILURE;
     }
 
-    return EXIT_FAILURE;
+    free(src);
+    return exit_code;
 }

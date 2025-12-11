@@ -9,3 +9,4 @@ endfunction()
 
 fort_test(lex_test)
 fort_test(parse_test)
+fort_test(assemble_test)
