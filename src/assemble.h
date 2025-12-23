@@ -1,10 +1,10 @@
 #ifndef FORT_ASSEMBLE_H
 #define FORT_ASSEMBLE_H
 
-#include <stdint.h>
+#include <stdint.h>  // for int32_t
 
-#include "common.h"
-#include "parse.h"
+#include "common.h"  // for fort_outcome_t, buf_t, filepath_t
+#include "parse.h"   // for prog_t
 
 typedef struct assembler assembler_t;
 
@@ -32,12 +32,14 @@ typedef enum {
     INST_RET,
 } inst_kind_t;
 
+typedef struct {
+    op_t src;
+    op_t dst;
+} mov_t;
+
 typedef struct inst {
     union {
-        struct {
-            op_t src;
-            op_t dst;
-        } mov;
+        mov_t mov;
     } u;
     inst_kind_t kind;
     struct inst* next;
@@ -59,5 +61,7 @@ void assembler_fini(assembler_t* assembler);
 fort_outcome_t assembler_run(assembler_t* assembler, asm_prog_t* asm_prog);
 
 void asm_prog_fini(asm_prog_t* asm_prog);
+
+fort_outcome_t emit_asm(asm_prog_t* asm_prog, const filepath_t* filepath);
 
 #endif // FORT_ASSEMBLE_H

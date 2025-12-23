@@ -9,6 +9,5 @@ CLI_TESTS=$CLI_TESTS_DIR/test_compiler
 FORT="$PROJECT_ROOT"/build/fort
 
 CHAPTER=1
-STAGE=codegen
 
-$CLI_TESTS $FORT --chapter $CHAPTER --stage $STAGE
+$CLI_TESTS $FORT --chapter $CHAPTER

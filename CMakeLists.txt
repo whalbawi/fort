@@ -98,12 +98,14 @@ set(FORT_SRC_LIST
 add_library(fort-lib ${FORT_SRC_LIST})
 target_include_directories(fort-lib PRIVATE ${FORT_SRC_DIR})
 set_target_properties(fort-lib PROPERTIES OUTPUT_NAME fort)
+target_compile_definitions(fort-lib PUBLIC _XOPEN_SOURCE=700)
 sanitizer_flags(fort-lib)
 
 # Fort compiler executable
 add_executable(fort ${FORT_SRC_DIR}/fort.c)
 target_include_directories(fort PRIVATE ${FORT_SRC_DIR})
 target_link_libraries(fort fort-lib)
+target_compile_definitions(fort PRIVATE _XOPEN_SOURCE=700)
 sanitizer_flags(fort)
 
 file(GLOB_RECURSE 
