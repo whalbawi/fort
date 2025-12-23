@@ -1,9 +1,13 @@
 #include "assemble.h"
 
-#include <stdlib.h>
+#include <fcntl.h>   // for open, O_APPEND, O_CREAT, O_TRUNC, O_WRONLY
+#include <stdio.h>   // for dprintf
+#include <stdlib.h>  // for malloc, free, size_t
+#include <string.h>  // for strlen
+#include <unistd.h>  // for NULL, close, fsync, write, ssize_t
 
-#include "common.h"
-#include "parse.h"
+#include "common.h"  // for fort_outcome_t, FORT_OUTCOME_NOK_RET, FORT_OUTCO...
+#include "parse.h"   // for prog_t, (anonymous struct)::(anonymous union)::(...
 
 struct assembler {
     prog_t* prog;
@@ -17,6 +21,7 @@ static fort_outcome_t convert_expression(expr_t* expr, op_t* op) {
 
         return FORT_OUTCOME_OK;
     }
+
     default:
         return FORT_OUTCOME_FATAL;
     }
@@ -110,4 +115,187 @@ void asm_prog_fini(asm_prog_t* asm_prog) {
         free(inst);
         inst = next;
     }
+}
+
+static fort_outcome_t write_buf(int fd, const buf_t buf) {
+    size_t len = buf.len;
+    const char* p = buf.p;
+    while (len > 0) {
+        ssize_t nbytes = write(fd, p, len);
+        if (nbytes < 0) {
+            return FORT_OUTCOME_ERR;
+        }
+
+        p += nbytes;
+        len -= (size_t)nbytes;
+    }
+
+    return FORT_OUTCOME_OK;
+}
+
+static inline fort_outcome_t write_newline(int fd) {
+    return write_buf(fd, (buf_t){"\n", 1});
+}
+
+static fort_outcome_t emit_reg(reg_t reg, int fd) {
+    fort_outcome_t outcome = FORT_OUTCOME_FATAL;
+
+    switch (reg) {
+    case REG_EAX: {
+        const char reg_label[] = "%eax";
+        outcome = write_buf(fd, (buf_t){reg_label, strlen(reg_label)});
+        FORT_OUTCOME_NOK_RET(outcome);
+        break;
+    }
+
+    default:
+        return FORT_OUTCOME_FATAL;
+    }
+
+    return FORT_OUTCOME_OK;
+}
+
+static fort_outcome_t emit_op(const op_t* op, int fd) {
+    fort_outcome_t outcome = FORT_OUTCOME_FATAL;
+
+    switch (op->kind) {
+    case OP_IMM: {
+        int nchars = dprintf(fd, "$%d", op->u.imm.val);
+        if (nchars < 0) {
+            return FORT_OUTCOME_ERR;
+        }
+        break;
+    }
+
+    case OP_REG: {
+        outcome = emit_reg(op->u.reg, fd);
+        FORT_OUTCOME_NOK_RET(outcome);
+    } break;
+
+    default:
+        return FORT_OUTCOME_FATAL;
+    }
+
+    return FORT_OUTCOME_OK;
+}
+
+static fort_outcome_t emit_inst_ret(int fd) {
+    fort_outcome_t outcome = FORT_OUTCOME_FATAL;
+
+    const char ret[] = "\tret\n";
+    outcome = write_buf(fd, (buf_t){ret, strlen(ret)});
+    FORT_OUTCOME_NOK_RET(outcome);
+
+    return FORT_OUTCOME_OK;
+}
+
+static fort_outcome_t emit_inst_mov(const mov_t* mov, int fd) {
+    const char movl[] = "\tmovl ";
+    fort_outcome_t outcome = write_buf(fd, (buf_t){movl, strlen(movl)});
+    FORT_OUTCOME_NOK_RET(outcome);
+
+    outcome = emit_op(&mov->src, fd);
+    FORT_OUTCOME_NOK_RET(outcome);
+
+    const char sep[] = ", ";
+    outcome = write_buf(fd, (buf_t){sep, strlen(sep)});
+    FORT_OUTCOME_NOK_RET(outcome);
+
+    outcome = emit_op(&mov->dst, fd);
+    FORT_OUTCOME_NOK_RET(outcome);
+
+    outcome = write_newline(fd);
+    FORT_OUTCOME_NOK_RET(outcome);
+
+    return FORT_OUTCOME_OK;
+}
+
+static fort_outcome_t emit_inst(const inst_t* inst, int fd) {
+    fort_outcome_t outcome = FORT_OUTCOME_FATAL;
+
+    while (inst != NULL) {
+        switch (inst->kind) {
+        case INST_MOV: {
+            outcome = emit_inst_mov(&inst->u.mov, fd);
+            FORT_OUTCOME_NOK_RET(outcome);
+            break;
+        }
+
+        case INST_RET: {
+            outcome = emit_inst_ret(fd);
+            FORT_OUTCOME_NOK_RET(outcome);
+            break;
+        }
+
+        default:
+            return FORT_OUTCOME_FATAL;
+        }
+
+        inst = inst->next;
+    }
+
+    return FORT_OUTCOME_OK;
+}
+
+static fort_outcome_t emit_func(asm_func_t* func, int fd) {
+    fort_outcome_t outcome = FORT_OUTCOME_FATAL;
+
+    const char global_label[] = "\t.globl ";
+    outcome = write_buf(fd, (buf_t){global_label, strlen(global_label)});
+    FORT_OUTCOME_NOK_RET(outcome);
+
+    outcome = write_buf(fd, func->name);
+    FORT_OUTCOME_NOK_RET(outcome);
+
+    outcome = write_newline(fd);
+    FORT_OUTCOME_NOK_RET(outcome);
+
+    outcome = write_buf(fd, func->name);
+    FORT_OUTCOME_NOK_RET(outcome);
+
+    outcome = write_buf(fd, (buf_t){":\n", 2});
+    FORT_OUTCOME_NOK_RET(outcome);
+
+    outcome = emit_inst(func->inst, fd);
+    FORT_OUTCOME_NOK_RET(outcome);
+
+    return FORT_OUTCOME_OK;
+}
+
+static fort_outcome_t emit_prog(asm_prog_t* prog, int fd) {
+    fort_outcome_t outcome = FORT_OUTCOME_FATAL;
+
+    outcome = emit_func(&prog->func, fd);
+    if (outcome != FORT_OUTCOME_OK) {
+        return outcome;
+    }
+
+    const char footer[] = ".section .note.GNU-stack, \"\",@progbits\n";
+    outcome = write_buf(fd, (buf_t){footer, strlen(footer)});
+    if (outcome != FORT_OUTCOME_OK) {
+        return outcome;
+    }
+
+    return FORT_OUTCOME_OK;
+}
+
+fort_outcome_t emit_asm(asm_prog_t* prog, const filepath_t* filepath) {
+    fort_outcome_t outcome = FORT_OUTCOME_FATAL;
+
+    const int perms = 0644; // RW-R-R
+    int fd = open(filepath->path, O_CREAT | O_WRONLY | O_APPEND | O_TRUNC, perms);
+    if (fd < 0) {
+        return FORT_OUTCOME_ERR;
+    }
+
+    outcome = emit_prog(prog, fd);
+    FORT_OUTCOME_NOK_RET(outcome);
+
+    if (fsync(fd) < 0) {
+        return FORT_OUTCOME_ERR;
+    }
+
+    FORT_UNUSED(close(fd));
+
+    return FORT_OUTCOME_OK;
 }

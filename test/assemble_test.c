@@ -1,10 +1,10 @@
 #include "assemble.h"
 
 #include <stddef.h>  // for NULL
-#include <string.h>  // for strlen
+#include <string.h>  // for strncmp, strlen
 
-#include "parse.h"   // for prog_t, expr_t, stmt_t
-#include "test.h"    // for TEST_ASSERT_*, TEST
+#include "parse.h"   // for prog_t, (anonymous struct)::(anonymous union)::(...
+#include "test.h"    // for TEST_ASSERT_EQ_INT32, TEST, TEST_RUN, TEST_ASSER...
 
 // Helper to create a program with a return statement
 static prog_t make_return_prog(const char* func_name, int32_t ret_val) {
