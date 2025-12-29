@@ -8,6 +8,7 @@ CLI_TESTS_DIR="$THIRD_PARTY_DIR"/writing-a-c-compiler-tests
 CLI_TESTS=$CLI_TESTS_DIR/test_compiler
 FORT="$PROJECT_ROOT"/build/fort
 
-CHAPTER=1
+CHAPTER=2
+STAGE=lex
 
-$CLI_TESTS $FORT --chapter $CHAPTER
+$CLI_TESTS $FORT --chapter $CHAPTER --stage $STAGE
