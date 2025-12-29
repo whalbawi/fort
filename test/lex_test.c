@@ -434,6 +434,181 @@ TEST(empty_comment, {
     lexer_fini(lexer);
 })
 
+TEST(tilde_operator, {
+    const char* src = "~42";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_stream_t toks = {0};
+    fort_outcome_t outcome = lexer_run(lexer, &toks);
+
+    TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_OK);
+
+    tok_t* tok = toks.head.next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_TILDE);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "~"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_CONSTANT);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "42"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
+
+    tok_stream_fini(&toks);
+    lexer_fini(lexer);
+})
+
+TEST(minus_operator, {
+    const char* src = "-42";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_stream_t toks = {0};
+    fort_outcome_t outcome = lexer_run(lexer, &toks);
+
+    TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_OK);
+
+    tok_t* tok = toks.head.next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_MINUS);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "-"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_CONSTANT);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "42"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
+
+    tok_stream_fini(&toks);
+    lexer_fini(lexer);
+})
+
+TEST(minus_minus_operator, {
+    const char* src = "--x";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_stream_t toks = {0};
+    fort_outcome_t outcome = lexer_run(lexer, &toks);
+
+    TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_OK);
+
+    tok_t* tok = toks.head.next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_MINUS_MINUS);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "--"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "x"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
+
+    tok_stream_fini(&toks);
+    lexer_fini(lexer);
+})
+
+TEST(minus_with_space, {
+    const char* src = "- 42";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_stream_t toks = {0};
+    fort_outcome_t outcome = lexer_run(lexer, &toks);
+
+    TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_OK);
+
+    tok_t* tok = toks.head.next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_MINUS);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "-"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_CONSTANT);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "42"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
+
+    tok_stream_fini(&toks);
+    lexer_fini(lexer);
+})
+
+TEST(unary_operators_combined, {
+    const char* src = "~-x";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_stream_t toks = {0};
+    fort_outcome_t outcome = lexer_run(lexer, &toks);
+
+    TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_OK);
+
+    tok_t* tok = toks.head.next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_TILDE);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "~"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_MINUS);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "-"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "x"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
+
+    tok_stream_fini(&toks);
+    lexer_fini(lexer);
+})
+
+TEST(unary_expression_in_return, {
+    const char* src = "return ~42;";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_stream_t toks = {0};
+    fort_outcome_t outcome = lexer_run(lexer, &toks);
+
+    TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_OK);
+
+    tok_t* tok = toks.head.next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_KEYWORD_RETURN);
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_TILDE);
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_CONSTANT);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "42"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_SEMICOLON);
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
+
+    tok_stream_fini(&toks);
+    lexer_fini(lexer);
+})
+
+TEST(decrement_expression, {
+    const char* src = "return --y;";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_stream_t toks = {0};
+    fort_outcome_t outcome = lexer_run(lexer, &toks);
+
+    TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_OK);
+
+    tok_t* tok = toks.head.next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_KEYWORD_RETURN);
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_MINUS_MINUS);
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_IDENTIFIER);
+    TEST_ASSERT_TRUE(lexeme_equals(tok, "y"));
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_SEMICOLON);
+
+    tok = tok->next;
+    TEST_ASSERT_EQ_INT32(tok->type, TOKT_EOF);
+
+    tok_stream_fini(&toks);
+    lexer_fini(lexer);
+})
+
 int main(int argc, char* argv[]) {
     TEST_INIT("lex", argc, argv);
 
@@ -454,6 +629,13 @@ int main(int argc, char* argv[]) {
     TEST_RUN(comment_with_code_like_content);
     TEST_RUN(function_with_comments);
     TEST_RUN(empty_comment);
+    TEST_RUN(tilde_operator);
+    TEST_RUN(minus_operator);
+    TEST_RUN(minus_minus_operator);
+    TEST_RUN(minus_with_space);
+    TEST_RUN(unary_operators_combined);
+    TEST_RUN(unary_expression_in_return);
+    TEST_RUN(decrement_expression);
 
     TEST_EXIT();
 }

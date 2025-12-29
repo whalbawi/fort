@@ -144,9 +144,21 @@ static tok_t lexer_next(lexer_t* lexer) {
     case '}':
         tok = mktok(lexer, TOKT_CLOSE_BRACE);
         break;
+    case '~':
+        tok = mktok(lexer, TOKT_TILDE);
+        break;
     case ';':
         tok = mktok(lexer, TOKT_SEMICOLON);
         break;
+    case '-': {
+        tokt_t type = TOKT_MINUS;
+        if (peek(lexer) == '-') {
+            FORT_UNUSED(advance(lexer));
+            type = TOKT_MINUS_MINUS;
+        }
+        tok = mktok(lexer, type);
+        break;
+    }
     default:
         if (is_digit(c)) {
             tok = mkconst(lexer);
