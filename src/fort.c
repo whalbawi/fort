@@ -1,15 +1,14 @@
 #include <fcntl.h>     // for open, O_RDONLY
 #include <getopt.h>    // for no_argument, getopt_long, option
 #include <stdint.h>    // for uint64_t
-#include <stdio.h>     // for perror, size_t
-#include <stdlib.h>    // for EXIT_FAILURE, EXIT_SUCCESS, free, NULL, exit
+#include <stdlib.h>    // for EXIT_FAILURE, EXIT_SUCCESS, free, size_t, NULL
 #include <string.h>    // for memcpy, strlen
-#include <unistd.h>    // for NULL, close, execvp, fork, optind, pread, off_t
+#include <unistd.h>    // for NULL, execvp, fork, optind, pread, off_t, pid_t
 #include <sys/stat.h>  // for stat, fstat
 #include <sys/wait.h>  // for waitpid
 
 #include "assemble.h"  // for asm_prog_t, asm_prog_fini, assembler_fini, ass...
-#include "common.h"    // for eprintln, FORT_OUTCOME_OK, fort_outcome_t, FOR...
+#include "common.h"    // for fort_log, FORT_OUTCOME_OK, LOG_ERROR, eprintln
 #include "lex.h"       // for tok_stream_fini, tok_stream_t, lexer_fini, lex...
 #include "parse.h"     // for prog_t, mkparser, parser_fini, parser_run, par...
 
@@ -20,7 +19,7 @@ typedef enum {
     STAGE_COMPILE,
 } stage_t;
 
-#define FMTstage "STAGE(%s)"
+#define FMTstage "STAGE=%s"
 
 static inline const char* ARGstage(stage_t stage) {
     switch (stage) {
@@ -40,28 +39,29 @@ static inline const char* ARGstage(stage_t stage) {
 static char* load_src(const char* filepath) {
     int fd = open(filepath, O_RDONLY);
     if (fd < 0) {
-        perror("open");
+        fort_log(LOG_ERROR, "could not open file %s: " FMTerrno, filepath, ARGerrno);
         return NULL;
     }
 
     struct stat st;
     if (fstat(fd, &st) < 0) {
-        perror("fstat");
-        FORT_UNUSED(close(fd));
+        fort_log(LOG_ERROR, "could not stat file %s: " FMTerrno, filepath, ARGerrno);
+        FORT_CLOSE(fd, filepath);
         return NULL;
     }
 
     if (st.st_size < 0) {
-        eprintln("error: unexpected file size: %zd", st.st_size);
-        FORT_UNUSED(close(fd));
+        fort_log(LOG_ERROR, "unexpected size for file %s: %zd", filepath, st.st_size);
+        FORT_CLOSE(fd, filepath);
         return NULL;
     }
 
     size_t file_sz = (size_t)st.st_size;
     char* src = malloc(file_sz + 1);
     if (src == NULL) {
-        perror("malloc");
-        FORT_UNUSED(close(fd));
+        fort_log(
+            LOG_ERROR, "could not allocate memory for file %s: ", FMTerrno, filepath, ARGerrno);
+        FORT_CLOSE(fd, filepath);
         return NULL;
     }
     src[file_sz] = '\0';
@@ -71,16 +71,16 @@ static char* load_src(const char* filepath) {
     while (nbytes_rem > 0) {
         ssize_t nbytes = pread(fd, src + off, nbytes_rem, off);
         if (nbytes < 0) {
-            perror("pread");
+            fort_log(LOG_ERROR, "could not read file %s: " FMTerrno, filepath, ARGerrno);
             free(src);
-            FORT_UNUSED(close(fd));
+            FORT_CLOSE(fd, filepath);
             return NULL;
         }
         nbytes_rem -= (size_t)nbytes;
         off += nbytes;
     }
 
-    FORT_UNUSED(close(fd));
+    FORT_CLOSE(fd, filepath);
 
     return src;
 }
@@ -133,7 +133,7 @@ static fort_outcome_t stage_lex(const char* src, tok_stream_t* toks) {
     fort_outcome_t outcome = lexer_run(lexer, toks);
     lexer_fini(lexer);
     if (outcome != FORT_OUTCOME_OK) {
-        eprintln("error: failed to lex source file");
+        fort_log(LOG_ERROR, "failed to lex source file");
 
         return outcome;
     }
@@ -153,7 +153,7 @@ static fort_outcome_t stage_parse(const char* src, prog_t* prog) {
     parser_fini(parser);
     tok_stream_fini(&toks);
     if (outcome != FORT_OUTCOME_OK) {
-        eprintln("error: failed to parse source file");
+        fort_log(LOG_ERROR, "failed to parse source file");
 
         return outcome;
     }
@@ -173,7 +173,7 @@ static fort_outcome_t stage_codegen(const char* src, asm_prog_t* asm_prog) {
     assembler_fini(assembler);
 
     if (outcome != FORT_OUTCOME_OK) {
-        eprintln("error: failed to generate assembly");
+        fort_log(LOG_ERROR, "failed to generate assembly");
 
         return outcome;
     }
@@ -184,7 +184,7 @@ static fort_outcome_t stage_codegen(const char* src, asm_prog_t* asm_prog) {
 static fort_outcome_t assemble_and_link(const filepath_t* asm_file, const filepath_t* out_file) {
     pid_t pid = fork();
     if (pid == -1) {
-        eprintln("could not fork process");
+        fort_log(LOG_FATAL, "could not fork process");
         return FORT_OUTCOME_FATAL;
     }
 
@@ -207,7 +207,7 @@ static fort_outcome_t assemble_and_link(const filepath_t* asm_file, const filepa
 #pragma GCC diagnostic pop
 
         if (execvp("clang", args) == -1) {
-            eprintln("error: could not execute clang");
+            fort_log(LOG_FATAL, "could not execute clang");
             exit(EXIT_FAILURE);
         }
     } else {
@@ -225,7 +225,7 @@ static fort_outcome_t stage_compile(const char* src, const filepath_t* out_file)
     asm_prog_t prog = {0};
     fort_outcome_t outcome = stage_codegen(src, &prog);
     if (outcome != FORT_OUTCOME_OK) {
-        eprintln("error: failed to generate assembly");
+        fort_log(LOG_ERROR, "failed to generate assembly");
 
         return outcome;
     }
@@ -233,19 +233,19 @@ static fort_outcome_t stage_compile(const char* src, const filepath_t* out_file)
     filepath_t asm_file = {0};
     outcome = tmp_file(&asm_file);
     if (outcome != FORT_OUTCOME_OK) {
-        eprintln("error: could not create temporary assembly file");
+        fort_log(LOG_ERROR, "could not create temporary assembly file");
     }
 
     outcome = emit_asm(&prog, &asm_file);
     if (outcome != FORT_OUTCOME_OK) {
-        eprintln("error: failed to emit assembly");
+        fort_log(LOG_ERROR, "failed to emit assembly");
 
         return outcome;
     }
 
     outcome = assemble_and_link(&asm_file, out_file);
     if (outcome != FORT_OUTCOME_OK) {
-        eprintln("error: failed to compile program");
+        fort_log(LOG_ERROR, "failed to compile program");
 
         return outcome;
     }
@@ -283,7 +283,7 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    eprintln("stage: " FMTstage, ARGstage(opts.stage));
+    fort_log(LOG_DEBUG, "compilation stage: " FMTstage, ARGstage(opts.stage));
     switch (opts.stage) {
     case STAGE_LEX: {
         tok_stream_t toks = {0};
@@ -312,7 +312,7 @@ int main(int argc, char* argv[]) {
         filepath_t out_file = {0};
         outcome = compute_out_file(opts.filepath, &out_file);
         if (outcome != FORT_OUTCOME_OK) {
-            eprintln("could not compute output filename");
+            fort_log(LOG_ERROR, "could not compute output filename");
             exit_code = EXIT_FAILURE;
             break;
         }
