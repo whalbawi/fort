@@ -294,3 +294,92 @@ fort_outcome_t parser_run(parser_t* parser, prog_t* prog) {
 
     return FORT_OUTCOME_OK;
 }
+
+// AST printer implementation
+
+static const int AST_INDENT_SIZE = 2;
+
+static void ast_print_indent(int depth) {
+    for (int i = 0; i < depth * AST_INDENT_SIZE; ++i) {
+        eprint(" ");
+    }
+}
+
+static const char* unop_to_str(unop_t op) {
+    switch (op) {
+    case UNOP_COMPLEMENT:
+        return "Complement";
+    case UNOP_NEGATE:
+        return "Negate";
+    default:
+        return "Unknown";
+    }
+}
+
+// Forward declaration for recursive printing
+static void ast_print_expr_content(const expr_t* expr, int depth);
+
+static void ast_print_expr(const expr_t* expr, int depth) {
+    ast_print_indent(depth);
+    ast_print_expr_content(expr, depth);
+}
+
+static void ast_print_expr_content(const expr_t* expr, int depth) {
+    switch (expr->kind) {
+    case EXPR_CONST: {
+        eprintln("Constant(%" PRId32 ")", expr->u.constant.val);
+        break;
+    }
+    case EXPR_UNARY: {
+        eprintln("UnaryOp(");
+        ast_print_indent(depth + 1);
+        eprintln("op=%s,", unop_to_str(expr->u.unary.op));
+        ast_print_indent(depth + 1);
+        if (expr->u.unary.expr != NULL) {
+            eprint("expr=");
+            ast_print_expr_content(expr->u.unary.expr, depth + 2);
+            ast_print_indent(depth + 1);
+        } else {
+            eprintln("expr=NULL");
+            ast_print_indent(depth + 1);
+        }
+        eprintln(")");
+        break;
+    }
+    }
+}
+
+static void ast_print_stmt(const stmt_t* stmt, int depth) {
+    ast_print_indent(depth);
+
+    switch (stmt->kind) {
+    case STMT_RET: {
+        eprintln("Return(");
+        ast_print_expr(&stmt->u.ret.expr, depth + 1);
+        ast_print_indent(depth);
+        eprintln(")");
+        break;
+    }
+    }
+}
+
+static void ast_print_func(const func_t* func, int depth) {
+    ast_print_indent(depth);
+    eprintln("Function(");
+
+    ast_print_indent(depth + 1);
+    eprintln("name=\"%.*s\",", (int)func->name.len, func->name.p);
+
+    ast_print_indent(depth + 1);
+    eprintln("body=");
+    ast_print_stmt(&func->body, depth + 2);
+
+    ast_print_indent(depth);
+    eprintln(")");
+}
+
+void ast_print(const prog_t* prog) {
+    eprintln("Program(");
+    ast_print_func(&prog->func, 1);
+    eprintln(")");
+}

@@ -1,5 +1,6 @@
 #include <fcntl.h>     // for open, O_RDONLY
 #include <getopt.h>    // for no_argument, getopt_long, option
+#include <stdbool.h>   // for bool, false, true
 #include <stdint.h>    // for uint64_t
 #include <stdlib.h>    // for EXIT_FAILURE, EXIT_SUCCESS, free, size_t, NULL
 #include <string.h>    // for memcpy, strlen
@@ -92,17 +93,24 @@ static char* load_src(const char* filepath) {
 static void print_usage(void) {
     eprintln("Usage: fort [OPTIONS] <source_file>");
     eprintln("Options:");
-    eprintln("  --lex       Tokenize the source file");
-    eprintln("  --parse     Parse the source file");
-    eprintln("  --tacky     Generate IR from the source file");
-    eprintln("  --codegen   Generate code from the source file");
-    eprintln("  --compile   Compile the source file (default)");
+    eprintln("  --lex        Tokenize the source file");
+    eprintln("  --parse      Parse the source file");
+    eprintln("  --tacky      Generate IR from the source file");
+    eprintln("  --codegen    Generate code from the source file");
+    eprintln("  --compile    Compile the source file (default)");
+    eprintln("  --print-ast  Print AST to stderr after parsing");
 }
 
 typedef struct {
     const char* filepath;
     stage_t stage;
+    bool print_ast;
 } opts_t;
+
+// Option values for flags that don't correspond to stages
+enum {
+    OPT_PRINT_AST = 256,
+};
 
 static fort_outcome_t parse_opts(int argc, char* argv[], opts_t* opts) {
     static const struct option long_opts[] = {{"lex", no_argument, NULL, STAGE_LEX},
@@ -110,6 +118,7 @@ static fort_outcome_t parse_opts(int argc, char* argv[], opts_t* opts) {
                                               {"tacky", no_argument, NULL, STAGE_IR},
                                               {"codegen", no_argument, NULL, STAGE_CODEGEN},
                                               {"compile", no_argument, NULL, STAGE_COMPILE},
+                                              {"print-ast", no_argument, NULL, OPT_PRINT_AST},
                                               {NULL, 0, NULL, 0}};
     int opt = -1;
     while ((opt = getopt_long(argc, argv, "", long_opts, NULL)) != -1) {
@@ -120,6 +129,9 @@ static fort_outcome_t parse_opts(int argc, char* argv[], opts_t* opts) {
         case STAGE_CODEGEN:
         case STAGE_COMPILE:
             opts->stage = (stage_t)opt;
+            break;
+        case OPT_PRINT_AST:
+            opts->print_ast = true;
             break;
         default:
             return FORT_OUTCOME_ERR;
@@ -299,7 +311,7 @@ int main(int argc, char* argv[]) {
     int exit_code = EXIT_FAILURE;
     fort_outcome_t outcome = FORT_OUTCOME_ERR;
 
-    opts_t opts = {NULL, STAGE_COMPILE};
+    opts_t opts = {NULL, STAGE_COMPILE, false};
     outcome = parse_opts(argc, argv, &opts);
     if (outcome != FORT_OUTCOME_OK) {
         print_usage();
@@ -324,6 +336,9 @@ int main(int argc, char* argv[]) {
     case STAGE_PARSE: {
         prog_t prog = {0};
         outcome = stage_parse(src, &prog);
+        if (outcome == FORT_OUTCOME_OK && opts.print_ast) {
+            ast_print(&prog);
+        }
         prog_fini(&prog);
         exit_code = outcome == FORT_OUTCOME_OK ? EXIT_SUCCESS : EXIT_FAILURE;
         break;
