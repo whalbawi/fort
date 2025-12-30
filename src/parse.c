@@ -338,10 +338,10 @@ static void ast_print_expr_content(const expr_t* expr, int depth) {
         if (expr->u.unary.expr != NULL) {
             eprint("expr=");
             ast_print_expr_content(expr->u.unary.expr, depth + 2);
-            ast_print_indent(depth);
+            ast_print_indent(depth + 1);
         } else {
             eprintln("expr=NULL");
-            ast_print_indent(depth);
+            ast_print_indent(depth + 1);
         }
         eprintln(")");
         break;
