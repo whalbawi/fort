@@ -169,6 +169,7 @@ static fort_outcome_t stage_codegen(const char* src, asm_prog_t* asm_prog) {
     }
 
     assembler_t* assembler = mkassembler(&prog);
+    prog_fini(&prog);
     outcome = assembler_run(assembler, asm_prog);
     assembler_fini(assembler);
 
@@ -296,6 +297,7 @@ int main(int argc, char* argv[]) {
     case STAGE_PARSE: {
         prog_t prog = {0};
         outcome = stage_parse(src, &prog);
+        prog_fini(&prog);
         exit_code = outcome == FORT_OUTCOME_OK ? EXIT_SUCCESS : EXIT_FAILURE;
         break;
     }
