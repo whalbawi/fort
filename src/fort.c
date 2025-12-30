@@ -10,11 +10,13 @@
 #include "assemble.h"  // for asm_prog_t, asm_prog_fini, assembler_fini, ass...
 #include "common.h"    // for fort_log, FORT_OUTCOME_OK, LOG_ERROR, eprintln
 #include "lex.h"       // for tok_stream_fini, tok_stream_t, lexer_fini, lex...
-#include "parse.h"     // for prog_t, mkparser, parser_fini, parser_run, par...
+#include "parse.h"     // for prog_fini, prog_t, mkparser, parser_fini, pars...
+#include "tac.h"       // for mktac, tac_free, tac_prog_fini, tac_prog_init
 
 typedef enum {
     STAGE_LEX,
     STAGE_PARSE,
+    STAGE_IR,
     STAGE_CODEGEN,
     STAGE_COMPILE,
 } stage_t;
@@ -27,6 +29,8 @@ static inline const char* ARGstage(stage_t stage) {
         return "lex";
     case STAGE_PARSE:
         return "parse";
+    case STAGE_IR:
+        return "IR";
     case STAGE_CODEGEN:
         return "codegen";
     case STAGE_COMPILE:
@@ -89,7 +93,8 @@ static void print_usage(void) {
     eprintln("Usage: fort [OPTIONS] <source_file>");
     eprintln("Options:");
     eprintln("  --lex       Tokenize the source file");
-    eprintln("  --parse     Parse the source file\n");
+    eprintln("  --parse     Parse the source file");
+    eprintln("  --tacky     Generate IR from the source file");
     eprintln("  --codegen   Generate code from the source file");
     eprintln("  --compile   Compile the source file (default)");
 }
@@ -102,6 +107,7 @@ typedef struct {
 static fort_outcome_t parse_opts(int argc, char* argv[], opts_t* opts) {
     static const struct option long_opts[] = {{"lex", no_argument, NULL, STAGE_LEX},
                                               {"parse", no_argument, NULL, STAGE_PARSE},
+                                              {"tacky", no_argument, NULL, STAGE_IR},
                                               {"codegen", no_argument, NULL, STAGE_CODEGEN},
                                               {"compile", no_argument, NULL, STAGE_COMPILE},
                                               {NULL, 0, NULL, 0}};
@@ -110,6 +116,7 @@ static fort_outcome_t parse_opts(int argc, char* argv[], opts_t* opts) {
         switch (opt) {
         case STAGE_LEX:
         case STAGE_PARSE:
+        case STAGE_IR:
         case STAGE_CODEGEN:
         case STAGE_COMPILE:
             opts->stage = (stage_t)opt;
@@ -154,6 +161,26 @@ static fort_outcome_t stage_parse(const char* src, prog_t* prog) {
     tok_stream_fini(&toks);
     if (outcome != FORT_OUTCOME_OK) {
         fort_log(LOG_ERROR, "failed to parse source file");
+
+        return outcome;
+    }
+
+    return FORT_OUTCOME_OK;
+}
+
+static fort_outcome_t stage_ir(const char* src, tac_prog_t* tac_prog) {
+    prog_t prog = {0};
+    fort_outcome_t outcome = stage_parse(src, &prog);
+    if (outcome != FORT_OUTCOME_OK) {
+        return outcome;
+    }
+
+    tac_t* tac = mktac(&prog);
+    outcome = tac_run(tac, tac_prog);
+    tac_free(tac);
+
+    if (outcome != FORT_OUTCOME_OK) {
+        fort_log(LOG_ERROR, "failed to generate assembly");
 
         return outcome;
     }
@@ -298,6 +325,19 @@ int main(int argc, char* argv[]) {
         prog_t prog = {0};
         outcome = stage_parse(src, &prog);
         prog_fini(&prog);
+        exit_code = outcome == FORT_OUTCOME_OK ? EXIT_SUCCESS : EXIT_FAILURE;
+        break;
+    }
+
+    case STAGE_IR: {
+        tac_prog_t prog = {0};
+        outcome = tac_prog_init(&prog);
+        if (outcome != FORT_OUTCOME_OK) {
+            exit_code = EXIT_FAILURE;
+            break;
+        }
+        outcome = stage_ir(src, &prog);
+        tac_prog_fini(&prog);
         exit_code = outcome == FORT_OUTCOME_OK ? EXIT_SUCCESS : EXIT_FAILURE;
         break;
     }
