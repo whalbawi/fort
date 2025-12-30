@@ -48,6 +48,16 @@ static inline void veprintln(const char* fmt, va_list args) {
     FORT_UNUSED(fprintf(stderr, "\n"));
 }
 
+static inline void eprint(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-nonliteral"
+    FORT_UNUSED(vfprintf(stderr, fmt, args));
+#pragma GCC diagnostic pop
+    va_end(args);
+}
+
 static inline void eprintln(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
