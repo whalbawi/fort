@@ -92,7 +92,9 @@ endfunction()
 set(FORT_SRC_LIST
     ${FORT_SRC_DIR}/assemble.c
     ${FORT_SRC_DIR}/lex.c
+    ${FORT_SRC_DIR}/list.c
     ${FORT_SRC_DIR}/parse.c
+    ${FORT_SRC_DIR}/tac.c
 )
 
 add_library(fort-lib ${FORT_SRC_LIST})

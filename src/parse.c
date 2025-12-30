@@ -3,8 +3,8 @@
 #include <inttypes.h>  // for int32_t, INT32_MAX
 #include <stdlib.h>    // for NULL, free, malloc, size_t
 
-#include "common.h"
-#include "lex.h"       // for tok_stream_t, tok_t, TOKT_CLOSE_BRACE, TOKT_CL...
+#include "common.h"    // for FORT_OUTCOME_NOK_RET, fort_outcome_t, FORT_OUT...
+#include "lex.h"       // for tok_stream_t, tok_t, TOKT_TILDE, TOKT_CLOSE_PAREN
 
 typedef enum {
     AST_NODE_PROG,

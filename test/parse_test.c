@@ -4,7 +4,7 @@
 #include <string.h>  // for strlen
 
 #include "lex.h"     // for lexer_fini, lexer_run, mklexer, tok_stream_fini
-#include "test.h"    // for TEST_ASSERT_EQ_INT32, TEST, TEST_RUN, TEST_EXIT
+#include "test.h"    // for TEST_ASSERT_EQ_INT32, TEST, TEST_RUN, TEST_ASSER...
 
 TEST(simple_program, {
     const char* src = "i32 main(void) { return 0; }";
