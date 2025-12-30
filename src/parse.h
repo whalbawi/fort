@@ -61,4 +61,6 @@ fort_outcome_t parser_run(parser_t* parser, prog_t* prog);
 
 void prog_fini(prog_t* prog);
 
+void ast_print(const prog_t* prog);
+
 #endif // FORT_PARSE_H

@@ -294,3 +294,84 @@ fort_outcome_t parser_run(parser_t* parser, prog_t* prog) {
 
     return FORT_OUTCOME_OK;
 }
+
+// AST printer implementation
+
+static const int AST_INDENT_SIZE = 2;
+
+static void ast_print_indent(int depth) {
+    for (int i = 0; i < depth * AST_INDENT_SIZE; i++) {
+        FORT_UNUSED(fputc(' ', stderr));
+    }
+}
+
+static const char* unop_to_str(unop_t op) {
+    switch (op) {
+    case UNOP_COMPLEMENT:
+        return "Complement";
+    case UNOP_NEGATE:
+        return "Negate";
+    default:
+        return "Unknown";
+    }
+}
+
+static void ast_print_expr(const expr_t* expr, int depth) {
+    ast_print_indent(depth);
+
+    switch (expr->kind) {
+    case EXPR_CONST:
+        FORT_UNUSED(fprintf(stderr, "Constant(%" PRId32 ")\n", expr->u.constant.val));
+        break;
+    case EXPR_UNARY:
+        FORT_UNUSED(fprintf(stderr, "UnaryOp(\n"));
+        ast_print_indent(depth + 1);
+        FORT_UNUSED(fprintf(stderr, "op=%s,\n", unop_to_str(expr->u.unary.op)));
+        ast_print_indent(depth + 1);
+        FORT_UNUSED(fprintf(stderr, "expr="));
+        if (expr->u.unary.expr != NULL) {
+            FORT_UNUSED(fputc('\n', stderr));
+            ast_print_expr(expr->u.unary.expr, depth + 2);
+            ast_print_indent(depth);
+        } else {
+            FORT_UNUSED(fprintf(stderr, "NULL\n"));
+            ast_print_indent(depth);
+        }
+        FORT_UNUSED(fprintf(stderr, ")\n"));
+        break;
+    }
+}
+
+static void ast_print_stmt(const stmt_t* stmt, int depth) {
+    ast_print_indent(depth);
+
+    switch (stmt->kind) {
+    case STMT_RET:
+        FORT_UNUSED(fprintf(stderr, "Return(\n"));
+        ast_print_expr(&stmt->u.ret.expr, depth + 1);
+        ast_print_indent(depth);
+        FORT_UNUSED(fprintf(stderr, ")\n"));
+        break;
+    }
+}
+
+static void ast_print_func(const func_t* func, int depth) {
+    ast_print_indent(depth);
+    FORT_UNUSED(fprintf(stderr, "Function(\n"));
+
+    ast_print_indent(depth + 1);
+    FORT_UNUSED(fprintf(stderr, "name=\"%.*s\",\n", (int)func->name.len, func->name.p));
+
+    ast_print_indent(depth + 1);
+    FORT_UNUSED(fprintf(stderr, "body=\n"));
+    ast_print_stmt(&func->body, depth + 2);
+
+    ast_print_indent(depth);
+    FORT_UNUSED(fprintf(stderr, ")\n"));
+}
+
+void ast_print(const prog_t* prog) {
+    FORT_UNUSED(fprintf(stderr, "Program(\n"));
+    ast_print_func(&prog->func, 1);
+    FORT_UNUSED(fprintf(stderr, ")\n"));
+}
