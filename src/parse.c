@@ -300,8 +300,8 @@ fort_outcome_t parser_run(parser_t* parser, prog_t* prog) {
 static const int AST_INDENT_SIZE = 2;
 
 static void ast_print_indent(int depth) {
-    for (int i = 0; i < depth * AST_INDENT_SIZE; i++) {
-        FORT_UNUSED(fputc(' ', stderr));
+    for (int i = 0; i < depth * AST_INDENT_SIZE; ++i) {
+        eprint(" ");
     }
 }
 
@@ -320,25 +320,29 @@ static void ast_print_expr(const expr_t* expr, int depth) {
     ast_print_indent(depth);
 
     switch (expr->kind) {
-    case EXPR_CONST:
-        FORT_UNUSED(fprintf(stderr, "Constant(%" PRId32 ")\n", expr->u.constant.val));
+    case EXPR_CONST: {
+        eprint("Constant(%" PRId32 ")", expr->u.constant.val);
+        eprintln("");
         break;
-    case EXPR_UNARY:
-        FORT_UNUSED(fprintf(stderr, "UnaryOp(\n"));
+    }
+    case EXPR_UNARY: {
+        eprintln("UnaryOp(");
         ast_print_indent(depth + 1);
-        FORT_UNUSED(fprintf(stderr, "op=%s,\n", unop_to_str(expr->u.unary.op)));
+        eprint("op=%s,", unop_to_str(expr->u.unary.op));
+        eprintln("");
         ast_print_indent(depth + 1);
-        FORT_UNUSED(fprintf(stderr, "expr="));
+        eprint("expr=");
         if (expr->u.unary.expr != NULL) {
-            FORT_UNUSED(fputc('\n', stderr));
+            eprintln("");
             ast_print_expr(expr->u.unary.expr, depth + 2);
             ast_print_indent(depth);
         } else {
-            FORT_UNUSED(fprintf(stderr, "NULL\n"));
+            eprintln("NULL");
             ast_print_indent(depth);
         }
-        FORT_UNUSED(fprintf(stderr, ")\n"));
+        eprintln(")");
         break;
+    }
     }
 }
 
@@ -346,32 +350,35 @@ static void ast_print_stmt(const stmt_t* stmt, int depth) {
     ast_print_indent(depth);
 
     switch (stmt->kind) {
-    case STMT_RET:
-        FORT_UNUSED(fprintf(stderr, "Return(\n"));
+    case STMT_RET: {
+        eprintln("Return(");
         ast_print_expr(&stmt->u.ret.expr, depth + 1);
         ast_print_indent(depth);
-        FORT_UNUSED(fprintf(stderr, ")\n"));
+        eprintln(")");
         break;
+    }
     }
 }
 
 static void ast_print_func(const func_t* func, int depth) {
     ast_print_indent(depth);
-    FORT_UNUSED(fprintf(stderr, "Function(\n"));
+    eprintln("Function(");
 
     ast_print_indent(depth + 1);
-    FORT_UNUSED(fprintf(stderr, "name=\"%.*s\",\n", (int)func->name.len, func->name.p));
+    eprint("name=\"%.*s\",", (int)func->name.len, func->name.p);
+    eprintln("");
 
     ast_print_indent(depth + 1);
-    FORT_UNUSED(fprintf(stderr, "body=\n"));
+    eprint("body=");
+    eprintln("");
     ast_print_stmt(&func->body, depth + 2);
 
     ast_print_indent(depth);
-    FORT_UNUSED(fprintf(stderr, ")\n"));
+    eprintln(")");
 }
 
 void ast_print(const prog_t* prog) {
-    FORT_UNUSED(fprintf(stderr, "Program(\n"));
+    eprintln("Program(");
     ast_print_func(&prog->func, 1);
-    FORT_UNUSED(fprintf(stderr, ")\n"));
+    eprintln(")");
 }

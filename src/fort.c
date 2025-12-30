@@ -160,7 +160,7 @@ static fort_outcome_t stage_lex(const char* src, tok_stream_t* toks) {
     return FORT_OUTCOME_OK;
 }
 
-static fort_outcome_t stage_parse(const char* src, prog_t* prog, bool print_ast) {
+static fort_outcome_t stage_parse(const char* src, prog_t* prog) {
     tok_stream_t toks = {0};
     fort_outcome_t outcome = stage_lex(src, &toks);
     if (outcome != FORT_OUTCOME_OK) {
@@ -177,16 +177,12 @@ static fort_outcome_t stage_parse(const char* src, prog_t* prog, bool print_ast)
         return outcome;
     }
 
-    if (print_ast) {
-        ast_print(prog);
-    }
-
     return FORT_OUTCOME_OK;
 }
 
-static fort_outcome_t stage_ir(const char* src, tac_prog_t* tac_prog, bool print_ast) {
+static fort_outcome_t stage_ir(const char* src, tac_prog_t* tac_prog) {
     prog_t prog = {0};
-    fort_outcome_t outcome = stage_parse(src, &prog, print_ast);
+    fort_outcome_t outcome = stage_parse(src, &prog);
     if (outcome != FORT_OUTCOME_OK) {
         return outcome;
     }
@@ -204,9 +200,9 @@ static fort_outcome_t stage_ir(const char* src, tac_prog_t* tac_prog, bool print
     return FORT_OUTCOME_OK;
 }
 
-static fort_outcome_t stage_codegen(const char* src, asm_prog_t* asm_prog, bool print_ast) {
+static fort_outcome_t stage_codegen(const char* src, asm_prog_t* asm_prog) {
     prog_t prog = {0};
-    fort_outcome_t outcome = stage_parse(src, &prog, print_ast);
+    fort_outcome_t outcome = stage_parse(src, &prog);
     if (outcome != FORT_OUTCOME_OK) {
         return outcome;
     }
@@ -265,9 +261,9 @@ static fort_outcome_t assemble_and_link(const filepath_t* asm_file, const filepa
     return FORT_OUTCOME_OK;
 }
 
-static fort_outcome_t stage_compile(const char* src, const filepath_t* out_file, bool print_ast) {
+static fort_outcome_t stage_compile(const char* src, const filepath_t* out_file) {
     asm_prog_t prog = {0};
-    fort_outcome_t outcome = stage_codegen(src, &prog, print_ast);
+    fort_outcome_t outcome = stage_codegen(src, &prog);
     if (outcome != FORT_OUTCOME_OK) {
         fort_log(LOG_ERROR, "failed to generate assembly");
 
@@ -339,7 +335,10 @@ int main(int argc, char* argv[]) {
 
     case STAGE_PARSE: {
         prog_t prog = {0};
-        outcome = stage_parse(src, &prog, opts.print_ast);
+        outcome = stage_parse(src, &prog);
+        if (outcome == FORT_OUTCOME_OK && opts.print_ast) {
+            ast_print(&prog);
+        }
         prog_fini(&prog);
         exit_code = outcome == FORT_OUTCOME_OK ? EXIT_SUCCESS : EXIT_FAILURE;
         break;
@@ -352,7 +351,7 @@ int main(int argc, char* argv[]) {
             exit_code = EXIT_FAILURE;
             break;
         }
-        outcome = stage_ir(src, &prog, opts.print_ast);
+        outcome = stage_ir(src, &prog);
         tac_prog_fini(&prog);
         exit_code = outcome == FORT_OUTCOME_OK ? EXIT_SUCCESS : EXIT_FAILURE;
         break;
@@ -360,7 +359,7 @@ int main(int argc, char* argv[]) {
 
     case STAGE_CODEGEN: {
         asm_prog_t asm_prog = {0};
-        outcome = stage_codegen(src, &asm_prog, opts.print_ast);
+        outcome = stage_codegen(src, &asm_prog);
         asm_prog_fini(&asm_prog);
         exit_code = outcome == FORT_OUTCOME_OK ? EXIT_SUCCESS : EXIT_FAILURE;
         break;
@@ -374,7 +373,7 @@ int main(int argc, char* argv[]) {
             exit_code = EXIT_FAILURE;
             break;
         }
-        outcome = stage_compile(src, &out_file, opts.print_ast);
+        outcome = stage_compile(src, &out_file);
         exit_code = outcome == FORT_OUTCOME_OK ? EXIT_SUCCESS : EXIT_FAILURE;
         break;
     }
