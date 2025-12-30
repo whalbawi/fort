@@ -22,6 +22,7 @@ TEST(simple_program, {
     TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.kind, EXPR_CONST);
     TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.u.constant.val, 0);
 
+    prog_fini(&prog);
     parser_fini(parser);
     tok_stream_fini(&toks);
     lexer_fini(lexer);
@@ -43,6 +44,7 @@ TEST(return_42, {
     TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.kind, EXPR_CONST);
     TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.u.constant.val, 42);
 
+    prog_fini(&prog);
     parser_fini(parser);
     tok_stream_fini(&toks);
     lexer_fini(lexer);
@@ -64,6 +66,7 @@ TEST(return_large_number, {
     TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.kind, EXPR_CONST);
     TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.u.constant.val, 2147483647);
 
+    prog_fini(&prog);
     parser_fini(parser);
     tok_stream_fini(&toks);
     lexer_fini(lexer);
@@ -82,6 +85,7 @@ TEST(overflow_constant, {
 
     TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_ERR);
 
+    prog_fini(&prog);
     parser_fini(parser);
     tok_stream_fini(&toks);
     lexer_fini(lexer);
@@ -101,6 +105,7 @@ TEST(with_whitespace, {
     TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_OK);
     TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.u.constant.val, 100);
 
+    prog_fini(&prog);
     parser_fini(parser);
     tok_stream_fini(&toks);
     lexer_fini(lexer);
@@ -123,6 +128,7 @@ TEST(with_comments, {
     TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_OK);
     TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.u.constant.val, 42);
 
+    prog_fini(&prog);
     parser_fini(parser);
     tok_stream_fini(&toks);
     lexer_fini(lexer);
@@ -144,6 +150,7 @@ TEST(multiline_program, {
     TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_OK);
     TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.u.constant.val, 7);
 
+    prog_fini(&prog);
     parser_fini(parser);
     tok_stream_fini(&toks);
     lexer_fini(lexer);
@@ -162,6 +169,7 @@ TEST(missing_return_keyword, {
 
     TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_ERR);
 
+    prog_fini(&prog);
     parser_fini(parser);
     tok_stream_fini(&toks);
     lexer_fini(lexer);
@@ -180,6 +188,7 @@ TEST(missing_semicolon, {
 
     TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_ERR);  // propagates outcome from expect
 
+    prog_fini(&prog);
     parser_fini(parser);
     tok_stream_fini(&toks);
     lexer_fini(lexer);
@@ -198,6 +207,7 @@ TEST(missing_expression, {
 
     TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_ERR);
 
+    prog_fini(&prog);
     parser_fini(parser);
     tok_stream_fini(&toks);
     lexer_fini(lexer);
@@ -216,6 +226,7 @@ TEST(missing_open_brace, {
 
     TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_ERR);
 
+    prog_fini(&prog);
     parser_fini(parser);
     tok_stream_fini(&toks);
     lexer_fini(lexer);
@@ -234,6 +245,7 @@ TEST(missing_close_brace, {
 
     TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_ERR);
 
+    prog_fini(&prog);
     parser_fini(parser);
     tok_stream_fini(&toks);
     lexer_fini(lexer);
@@ -252,6 +264,7 @@ TEST(missing_void_keyword, {
 
     TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_ERR);
 
+    prog_fini(&prog);
     parser_fini(parser);
     tok_stream_fini(&toks);
     lexer_fini(lexer);
@@ -270,6 +283,7 @@ TEST(wrong_return_type, {
 
     TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_ERR);
 
+    prog_fini(&prog);
     parser_fini(parser);
     tok_stream_fini(&toks);
     lexer_fini(lexer);
@@ -288,6 +302,7 @@ TEST(missing_function_name, {
 
     TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_ERR);
 
+    prog_fini(&prog);
     parser_fini(parser);
     tok_stream_fini(&toks);
     lexer_fini(lexer);
@@ -306,6 +321,7 @@ TEST(empty_input, {
 
     TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_ERR);
 
+    prog_fini(&prog);
     parser_fini(parser);
     tok_stream_fini(&toks);
     lexer_fini(lexer);
@@ -335,6 +351,212 @@ TEST(null_prog, {
     lexer_fini(lexer);
 })
 
+TEST(unary_complement, {
+    const char* src = "i32 main(void) { return ~42; }";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_stream_t toks = {0};
+    fort_outcome_t lex_outcome = lexer_run(lexer, &toks);
+    TEST_ASSERT_EQ_INT32(lex_outcome, FORT_OUTCOME_OK);
+    parser_t* parser = mkparser(&toks);
+
+    prog_t prog = {0};
+    fort_outcome_t outcome = parser_run(parser, &prog);
+
+    TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_OK);
+    TEST_ASSERT_EQ_INT32(prog.func.body.kind, STMT_RET);
+    TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.kind, EXPR_UNARY);
+    TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.u.unary.op, UNOP_COMPLEMENT);
+    TEST_ASSERT_NONNULL(prog.func.body.u.ret.expr.u.unary.expr);
+    TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.u.unary.expr->kind, EXPR_CONST);
+    TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.u.unary.expr->u.constant.val, 42);
+
+    prog_fini(&prog);
+    parser_fini(parser);
+    tok_stream_fini(&toks);
+    lexer_fini(lexer);
+})
+
+TEST(unary_negate, {
+    const char* src = "i32 main(void) { return -42; }";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_stream_t toks = {0};
+    fort_outcome_t lex_outcome = lexer_run(lexer, &toks);
+    TEST_ASSERT_EQ_INT32(lex_outcome, FORT_OUTCOME_OK);
+    parser_t* parser = mkparser(&toks);
+
+    prog_t prog = {0};
+    fort_outcome_t outcome = parser_run(parser, &prog);
+
+    TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_OK);
+    TEST_ASSERT_EQ_INT32(prog.func.body.kind, STMT_RET);
+    TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.kind, EXPR_UNARY);
+    TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.u.unary.op, UNOP_NEGATE);
+    TEST_ASSERT_NONNULL(prog.func.body.u.ret.expr.u.unary.expr);
+    TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.u.unary.expr->kind, EXPR_CONST);
+    TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.u.unary.expr->u.constant.val, 42);
+
+    prog_fini(&prog);
+    parser_fini(parser);
+    tok_stream_fini(&toks);
+    lexer_fini(lexer);
+})
+
+TEST(nested_unary_complement_negate, {
+    const char* src = "i32 main(void) { return ~-100; }";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_stream_t toks = {0};
+    fort_outcome_t lex_outcome = lexer_run(lexer, &toks);
+    TEST_ASSERT_EQ_INT32(lex_outcome, FORT_OUTCOME_OK);
+    parser_t* parser = mkparser(&toks);
+
+    prog_t prog = {0};
+    fort_outcome_t outcome = parser_run(parser, &prog);
+
+    TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_OK);
+    TEST_ASSERT_EQ_INT32(prog.func.body.kind, STMT_RET);
+
+    expr_t* outer = &prog.func.body.u.ret.expr;
+    TEST_ASSERT_EQ_INT32(outer->kind, EXPR_UNARY);
+    TEST_ASSERT_EQ_INT32(outer->u.unary.op, UNOP_COMPLEMENT);
+
+    expr_t* inner = outer->u.unary.expr;
+    TEST_ASSERT_NONNULL(inner);
+    TEST_ASSERT_EQ_INT32(inner->kind, EXPR_UNARY);
+    TEST_ASSERT_EQ_INT32(inner->u.unary.op, UNOP_NEGATE);
+
+    expr_t* constant = inner->u.unary.expr;
+    TEST_ASSERT_NONNULL(constant);
+    TEST_ASSERT_EQ_INT32(constant->kind, EXPR_CONST);
+    TEST_ASSERT_EQ_INT32(constant->u.constant.val, 100);
+
+    prog_fini(&prog);
+    parser_fini(parser);
+    tok_stream_fini(&toks);
+    lexer_fini(lexer);
+})
+
+TEST(nested_unary_negate_complement, {
+    const char* src = "i32 main(void) { return -~7; }";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_stream_t toks = {0};
+    fort_outcome_t lex_outcome = lexer_run(lexer, &toks);
+    TEST_ASSERT_EQ_INT32(lex_outcome, FORT_OUTCOME_OK);
+    parser_t* parser = mkparser(&toks);
+
+    prog_t prog = {0};
+    fort_outcome_t outcome = parser_run(parser, &prog);
+
+    TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_OK);
+    TEST_ASSERT_EQ_INT32(prog.func.body.kind, STMT_RET);
+
+    expr_t* outer = &prog.func.body.u.ret.expr;
+    TEST_ASSERT_EQ_INT32(outer->kind, EXPR_UNARY);
+    TEST_ASSERT_EQ_INT32(outer->u.unary.op, UNOP_NEGATE);
+
+    expr_t* inner = outer->u.unary.expr;
+    TEST_ASSERT_NONNULL(inner);
+    TEST_ASSERT_EQ_INT32(inner->kind, EXPR_UNARY);
+    TEST_ASSERT_EQ_INT32(inner->u.unary.op, UNOP_COMPLEMENT);
+
+    expr_t* constant = inner->u.unary.expr;
+    TEST_ASSERT_NONNULL(constant);
+    TEST_ASSERT_EQ_INT32(constant->kind, EXPR_CONST);
+    TEST_ASSERT_EQ_INT32(constant->u.constant.val, 7);
+
+    prog_fini(&prog);
+    parser_fini(parser);
+    tok_stream_fini(&toks);
+    lexer_fini(lexer);
+})
+
+TEST(double_complement, {
+    const char* src = "i32 main(void) { return ~~5; }";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_stream_t toks = {0};
+    fort_outcome_t lex_outcome = lexer_run(lexer, &toks);
+    TEST_ASSERT_EQ_INT32(lex_outcome, FORT_OUTCOME_OK);
+    parser_t* parser = mkparser(&toks);
+
+    prog_t prog = {0};
+    fort_outcome_t outcome = parser_run(parser, &prog);
+
+    TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_OK);
+
+    expr_t* outer = &prog.func.body.u.ret.expr;
+    TEST_ASSERT_EQ_INT32(outer->kind, EXPR_UNARY);
+    TEST_ASSERT_EQ_INT32(outer->u.unary.op, UNOP_COMPLEMENT);
+
+    expr_t* inner = outer->u.unary.expr;
+    TEST_ASSERT_NONNULL(inner);
+    TEST_ASSERT_EQ_INT32(inner->kind, EXPR_UNARY);
+    TEST_ASSERT_EQ_INT32(inner->u.unary.op, UNOP_COMPLEMENT);
+
+    expr_t* constant = inner->u.unary.expr;
+    TEST_ASSERT_NONNULL(constant);
+    TEST_ASSERT_EQ_INT32(constant->kind, EXPR_CONST);
+    TEST_ASSERT_EQ_INT32(constant->u.constant.val, 5);
+
+    prog_fini(&prog);
+    parser_fini(parser);
+    tok_stream_fini(&toks);
+    lexer_fini(lexer);
+})
+
+TEST(double_negate, {
+    const char* src = "i32 main(void) { return - -8; }";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_stream_t toks = {0};
+    fort_outcome_t lex_outcome = lexer_run(lexer, &toks);
+    TEST_ASSERT_EQ_INT32(lex_outcome, FORT_OUTCOME_OK);
+    parser_t* parser = mkparser(&toks);
+
+    prog_t prog = {0};
+    fort_outcome_t outcome = parser_run(parser, &prog);
+
+    TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_OK);
+
+    expr_t* outer = &prog.func.body.u.ret.expr;
+    TEST_ASSERT_EQ_INT32(outer->kind, EXPR_UNARY);
+    TEST_ASSERT_EQ_INT32(outer->u.unary.op, UNOP_NEGATE);
+
+    expr_t* inner = outer->u.unary.expr;
+    TEST_ASSERT_NONNULL(inner);
+    TEST_ASSERT_EQ_INT32(inner->kind, EXPR_UNARY);
+    TEST_ASSERT_EQ_INT32(inner->u.unary.op, UNOP_NEGATE);
+
+    expr_t* constant = inner->u.unary.expr;
+    TEST_ASSERT_NONNULL(constant);
+    TEST_ASSERT_EQ_INT32(constant->kind, EXPR_CONST);
+    TEST_ASSERT_EQ_INT32(constant->u.constant.val, 8);
+
+    prog_fini(&prog);
+    parser_fini(parser);
+    tok_stream_fini(&toks);
+    lexer_fini(lexer);
+})
+
+TEST(unary_with_whitespace, {
+    const char* src = "i32 main(void) { return  ~  42  ; }";
+    lexer_t* lexer = mklexer(src, strlen(src));
+    tok_stream_t toks = {0};
+    fort_outcome_t lex_outcome = lexer_run(lexer, &toks);
+    TEST_ASSERT_EQ_INT32(lex_outcome, FORT_OUTCOME_OK);
+    parser_t* parser = mkparser(&toks);
+
+    prog_t prog = {0};
+    fort_outcome_t outcome = parser_run(parser, &prog);
+
+    TEST_ASSERT_EQ_INT32(outcome, FORT_OUTCOME_OK);
+    TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.kind, EXPR_UNARY);
+    TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.u.unary.op, UNOP_COMPLEMENT);
+    TEST_ASSERT_EQ_INT32(prog.func.body.u.ret.expr.u.unary.expr->u.constant.val, 42);
+
+    prog_fini(&prog);
+    parser_fini(parser);
+    tok_stream_fini(&toks);
+    lexer_fini(lexer);
+})
+
 int main(int argc, char* argv[]) {
     TEST_INIT("parse", argc, argv);
 
@@ -356,6 +578,13 @@ int main(int argc, char* argv[]) {
     TEST_RUN(empty_input);
     TEST_RUN(null_parser);
     TEST_RUN(null_prog);
+    TEST_RUN(unary_complement);
+    TEST_RUN(unary_negate);
+    TEST_RUN(nested_unary_complement_negate);
+    TEST_RUN(nested_unary_negate_complement);
+    TEST_RUN(double_complement);
+    TEST_RUN(double_negate);
+    TEST_RUN(unary_with_whitespace);
 
     TEST_EXIT();
 }

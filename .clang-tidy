@@ -11,6 +11,7 @@ Checks: >
   -readability-function-cognitive-complexity,
   -readability-identifier-length,
   -misc-include-cleaner,
+  -misc-no-recursion,
   -cppcoreguidelines-avoid-do-while,
   -cppcoreguidelines-avoid-non-const-global-variables,
   -cppcoreguidelines-macro-usage

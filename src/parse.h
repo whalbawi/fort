@@ -10,13 +10,23 @@ typedef struct parser parser_t;
 
 typedef enum {
     EXPR_CONST,
+    EXPR_UNARY,
 } expr_kind_t;
 
-typedef struct {
+typedef enum {
+    UNOP_COMPLEMENT,
+    UNOP_NEGATE,
+} unop_t;
+
+typedef struct expr {
     union {
         struct {
             int32_t val;
         } constant;
+        struct {
+            unop_t op;
+            struct expr* expr;
+        } unary;
     } u;
     expr_kind_t kind;
 } expr_t;
@@ -48,5 +58,7 @@ parser_t* mkparser(tok_stream_t* toks);
 void parser_fini(parser_t* parser);
 
 fort_outcome_t parser_run(parser_t* parser, prog_t* prog);
+
+void prog_fini(prog_t* prog);
 
 #endif // FORT_PARSE_H
