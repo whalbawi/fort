@@ -316,28 +316,31 @@ static const char* unop_to_str(unop_t op) {
     }
 }
 
+// Forward declaration for recursive printing
+static void ast_print_expr_content(const expr_t* expr, int depth);
+
 static void ast_print_expr(const expr_t* expr, int depth) {
     ast_print_indent(depth);
+    ast_print_expr_content(expr, depth);
+}
 
+static void ast_print_expr_content(const expr_t* expr, int depth) {
     switch (expr->kind) {
     case EXPR_CONST: {
-        eprint("Constant(%" PRId32 ")", expr->u.constant.val);
-        eprintln("");
+        eprintln("Constant(%" PRId32 ")", expr->u.constant.val);
         break;
     }
     case EXPR_UNARY: {
         eprintln("UnaryOp(");
         ast_print_indent(depth + 1);
-        eprint("op=%s,", unop_to_str(expr->u.unary.op));
-        eprintln("");
+        eprintln("op=%s,", unop_to_str(expr->u.unary.op));
         ast_print_indent(depth + 1);
-        eprint("expr=");
         if (expr->u.unary.expr != NULL) {
-            eprintln("");
-            ast_print_expr(expr->u.unary.expr, depth + 2);
+            eprint("expr=");
+            ast_print_expr_content(expr->u.unary.expr, depth + 2);
             ast_print_indent(depth);
         } else {
-            eprintln("NULL");
+            eprintln("expr=NULL");
             ast_print_indent(depth);
         }
         eprintln(")");
@@ -365,12 +368,10 @@ static void ast_print_func(const func_t* func, int depth) {
     eprintln("Function(");
 
     ast_print_indent(depth + 1);
-    eprint("name=\"%.*s\",", (int)func->name.len, func->name.p);
-    eprintln("");
+    eprintln("name=\"%.*s\",", (int)func->name.len, func->name.p);
 
     ast_print_indent(depth + 1);
-    eprint("body=");
-    eprintln("");
+    eprintln("body=");
     ast_print_stmt(&func->body, depth + 2);
 
     ast_print_indent(depth);
