@@ -193,13 +193,13 @@ void lexer_fini(lexer_t* lexer) {
 }
 
 fort_outcome_t lexer_run(lexer_t* lexer, tok_stream_t* toks) {
-    tok_t* ip = &toks->head;
+    toks->tail = &toks->head;
 
     for (;;) {
         tok_t* tok = malloc(sizeof(tok_t));
         *tok = lexer_next(lexer);
-        ip->next = tok;
-        ip = ip->next;
+        toks->tail->next = tok;
+        toks->tail = tok;
 
         if (tok->type == TOKT_ERROR) {
             return FORT_OUTCOME_ERR;
@@ -209,8 +209,6 @@ fort_outcome_t lexer_run(lexer_t* lexer, tok_stream_t* toks) {
             break;
         }
     }
-
-    toks->next = toks->head.next;
 
     return FORT_OUTCOME_OK;
 }

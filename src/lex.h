@@ -35,7 +35,7 @@ typedef struct tok {
 
 typedef struct {
     tok_t head;
-    tok_t* next;
+    tok_t* tail;
 } tok_stream_t;
 
 lexer_t* mklexer(const char* src, size_t len);

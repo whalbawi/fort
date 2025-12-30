@@ -31,15 +31,15 @@ static fort_outcome_t consume_tok(tok_stream_t* toks, tok_t* tok) {
         return FORT_OUTCOME_FATAL;
     }
 
-    if (toks->next == NULL) {
+    if (toks->head.next == NULL) {
         return FORT_OUTCOME_ERR;
     }
 
     if (tok != NULL) {
-        *tok = *toks->next;
+        *tok = *toks->head.next;
     }
 
-    toks->next = toks->next->next;
+    toks->head.next = toks->head.next->next;
 
     return FORT_OUTCOME_OK;
 }
