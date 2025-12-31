@@ -26,6 +26,24 @@ void list_push(list_t* list, void* data) {
 }
 
 void* list_pop(list_t* list) {
+    return list_pop_tail(list);
+}
+
+void* list_pop_head(list_t* list) {
+    if (list->head.next == &list->tail) {
+        return NULL;
+    }
+
+    node_t* node = list->head.next;
+    void* data = node->data;
+    node->next->prev = &list->head;
+    list->head.next = node->next;
+    free(node);
+
+    return data;
+}
+
+void* list_pop_tail(list_t* list) {
     if (list->head.next == &list->tail) {
         return NULL;
     }

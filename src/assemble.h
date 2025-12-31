@@ -4,6 +4,7 @@
 #include <stdint.h>  // for int32_t
 
 #include "common.h"  // for fort_outcome_t, buf_t, filepath_t
+#include "list.h"
 #include "parse.h"   // for prog_t
 
 typedef struct assembler assembler_t;
@@ -42,12 +43,11 @@ typedef struct inst {
         mov_t mov;
     } u;
     inst_kind_t kind;
-    struct inst* next;
 } inst_t;
 
 typedef struct {
     buf_t name;
-    inst_t* inst;
+    list_t insts;
 } asm_func_t;
 
 typedef struct {
@@ -59,6 +59,8 @@ assembler_t* mkassembler(prog_t* prog);
 void assembler_fini(assembler_t* assembler);
 
 fort_outcome_t assembler_run(assembler_t* assembler, asm_prog_t* asm_prog);
+
+fort_outcome_t asm_prog_init(asm_prog_t* asm_prog);
 
 void asm_prog_fini(asm_prog_t* asm_prog);
 

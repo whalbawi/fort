@@ -118,10 +118,7 @@ static void func_fini(tac_func_t* func) {
         return;
     }
 
-    void* data = NULL;
-    while ((data = list_pop(&func->insts)) != NULL) {
-        free(data);
-    }
+    LIST_ITER(&func->insts, data, void*, { free(data); })
 
     list_fini(&func->insts);
 }

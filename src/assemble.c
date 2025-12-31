@@ -7,6 +7,7 @@
 #include <unistd.h>  // for NULL, close, fsync, write, ssize_t
 
 #include "common.h"  // for fort_outcome_t, FORT_OUTCOME_NOK_RET, FORT_OUTCO...
+#include "list.h"
 #include "parse.h"   // for prog_t, (anonymous struct)::(anonymous union)::(...
 
 struct assembler {
@@ -27,29 +28,57 @@ static fort_outcome_t convert_expression(expr_t* expr, op_t* op) {
     }
 }
 
-static inline fort_outcome_t gen_inst(stmt_t* body, inst_t** inst) {
+static inst_t* mkinst_mov(op_t src, op_t dst) {
+    inst_t* inst = malloc(sizeof(inst_t));
+    if (inst == NULL) {
+        return NULL;
+    }
+    inst->u.mov.src = src;
+    inst->u.mov.dst = dst;
+    inst->kind = INST_MOV;
+
+    return inst;
+}
+
+static inst_t* mkinst_ret(void) {
+    inst_t* inst = malloc(sizeof(inst_t));
+    if (inst == NULL) {
+        return NULL;
+    }
+
+    inst->kind = INST_RET;
+
+    return inst;
+}
+
+static inline fort_outcome_t gen_inst(stmt_t* body, list_t* insts) {
     switch (body->kind) {
     case STMT_RET: {
         op_t imm = {0};
         fort_outcome_t outcome = convert_expression(&body->u.ret.expr, &imm);
         FORT_OUTCOME_NOK_RET(outcome);
-        inst_t* inst_mov = malloc(sizeof(inst_t));
-        inst_mov->u.mov.src = imm;
-        inst_mov->u.mov.dst = (op_t){{{REG_EAX}}, OP_REG};
-        inst_mov->kind = INST_MOV;
 
-        inst_t* inst_ret = malloc(sizeof(inst_t));
-        inst_ret->kind = INST_RET;
-        inst_ret->next = NULL;
-        inst_mov->next = inst_ret;
+        inst_t* inst_mov = mkinst_mov(imm, (op_t){{{REG_EAX}}, OP_REG});
+        if (inst_mov == NULL) {
+            return FORT_OUTCOME_FATAL;
+        }
+        list_push(insts, inst_mov);
 
-        *inst = inst_mov;
+        inst_t* inst_ret = mkinst_ret();
+        if (inst_ret == NULL) {
+            return FORT_OUTCOME_FATAL;
+        }
 
-        return FORT_OUTCOME_OK;
+        list_push(insts, inst_ret);
+        break;
     }
-    default:
+
+    default: {
         return FORT_OUTCOME_FATAL;
     }
+    }
+
+    return FORT_OUTCOME_OK;
 }
 static fort_outcome_t gen_func(func_t* func, asm_func_t* asm_func) {
 
@@ -61,7 +90,7 @@ static fort_outcome_t gen_func(func_t* func, asm_func_t* asm_func) {
 
     asm_func->name = func->name;
 
-    outcome = gen_inst(&func->body, &asm_func->inst);
+    outcome = gen_inst(&func->body, &asm_func->insts);
     FORT_OUTCOME_NOK_RET(outcome);
 
     return FORT_OUTCOME_OK;
@@ -80,14 +109,42 @@ static fort_outcome_t gen_prog(prog_t* prog, asm_prog_t* asm_prog) {
     return FORT_OUTCOME_OK;
 }
 
+static fort_outcome_t func_init(asm_func_t* func) {
+    if (func == NULL) {
+        return FORT_OUTCOME_FATAL;
+    }
+
+    list_init(&func->insts);
+
+    return FORT_OUTCOME_OK;
+}
+
+static void func_fini(asm_func_t* func) {
+    if (func == NULL) {
+        return;
+    }
+
+    LIST_ITER(&func->insts, data, void*, { free(data); })
+
+    list_fini(&func->insts);
+}
+
 assembler_t* mkassembler(prog_t* prog) {
     assembler_t* assembler = malloc(sizeof(assembler_t));
+    if (assembler == NULL) {
+        return NULL;
+    }
+
     assembler->prog = prog;
 
     return assembler;
 }
 
 void assembler_fini(assembler_t* assembler) {
+    if (assembler == NULL) {
+        return;
+    }
+
     free(assembler);
 }
 
@@ -108,13 +165,25 @@ fort_outcome_t assembler_run(assembler_t* assembler, asm_prog_t* asm_prog) {
     return FORT_OUTCOME_OK;
 }
 
-void asm_prog_fini(asm_prog_t* asm_prog) {
-    inst_t* inst = asm_prog->func.inst;
-    while (inst != NULL) {
-        inst_t* next = inst->next;
-        free(inst);
-        inst = next;
+fort_outcome_t asm_prog_init(asm_prog_t* prog) {
+    fort_outcome_t outcome = FORT_OUTCOME_FATAL;
+
+    if (prog == NULL) {
+        return FORT_OUTCOME_FATAL;
     }
+
+    outcome = func_init(&prog->func);
+    FORT_OUTCOME_NOK_RET(outcome);
+
+    return FORT_OUTCOME_OK;
+}
+
+void asm_prog_fini(asm_prog_t* prog) {
+    if (prog == NULL) {
+        return;
+    }
+
+    func_fini(&prog->func);
 }
 
 static fort_outcome_t write_buf(int fd, const buf_t buf) {
@@ -210,10 +279,10 @@ static fort_outcome_t emit_inst_mov(const mov_t* mov, int fd) {
     return FORT_OUTCOME_OK;
 }
 
-static fort_outcome_t emit_inst(const inst_t* inst, int fd) {
+static fort_outcome_t emit_inst(const list_t* insts, int fd) {
     fort_outcome_t outcome = FORT_OUTCOME_FATAL;
 
-    while (inst != NULL) {
+    LIST_ITER(insts, inst, inst_t*, {
         switch (inst->kind) {
         case INST_MOV: {
             outcome = emit_inst_mov(&inst->u.mov, fd);
@@ -230,9 +299,7 @@ static fort_outcome_t emit_inst(const inst_t* inst, int fd) {
         default:
             return FORT_OUTCOME_FATAL;
         }
-
-        inst = inst->next;
-    }
+    })
 
     return FORT_OUTCOME_OK;
 }
@@ -256,7 +323,7 @@ static fort_outcome_t emit_func(asm_func_t* func, int fd) {
     outcome = write_buf(fd, (buf_t){":\n", 2});
     FORT_OUTCOME_NOK_RET(outcome);
 
-    outcome = emit_inst(func->inst, fd);
+    outcome = emit_inst(&func->insts, fd);
     FORT_OUTCOME_NOK_RET(outcome);
 
     return FORT_OUTCOME_OK;
